@@ -207,8 +207,9 @@ export default function SubjectsPage() {
                       <td className="px-3 py-2">
                         <div className="flex gap-2">
                           <Button
-                            size="icon"
+                            size="sm"
                             variant="outline"
+                            className="h-9 w-9"
                             aria-label="Edit subject"
                             onClick={() =>
                               setEditing({
@@ -222,8 +223,9 @@ export default function SubjectsPage() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                           <Button
-                            size="icon"
-                            variant="destructive"
+                            size="sm"
+                            variant="outline"
+                            className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
                             aria-label="Delete subject"
                             onClick={() => handleDelete(subject._id)}
                           >

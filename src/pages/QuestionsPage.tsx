@@ -44,6 +44,15 @@ interface Question {
   answer?: string;
 }
 
+type IncomingOption =
+  | string
+  | {
+      text?: string;
+      isCorrect?: boolean;
+      is_correct?: boolean;
+      correct?: boolean;
+    };
+
 type NewQuestionForm = {
   text: string;
   type: Question["type"];
@@ -112,19 +121,26 @@ export default function QuestionsPage() {
 
       // Ensure every option carries an explicit isCorrect flag for the UI
       const normalizedQuestions =
-        q?.map((question) => {
+        (q ?? []).map((question: Question) => {
           const options = Array.isArray(question.options)
-            ? question.options.map((opt: any) => ({
-                text: typeof opt === "string" ? opt : opt?.text || "",
-                isCorrect: !!(opt?.isCorrect || opt?.is_correct || opt?.correct),
-              }))
+            ? question.options.map((opt: IncomingOption) => {
+                if (typeof opt === "string") {
+                  return { text: opt, isCorrect: false };
+                }
+
+                const { text = "", isCorrect, is_correct, correct } = opt || {};
+                return {
+                  text,
+                  isCorrect: !!(isCorrect ?? is_correct ?? correct),
+                };
+              })
             : [];
 
           const correctAnswer =
             question.correctAnswer ||
             (question.type === "fill_blank"
               ? question.answer
-              : options?.find((o) => o.isCorrect)?.text || question.answer);
+              : options?.find((opt) => opt.isCorrect)?.text || question.answer);
 
           return {
             ...question,
@@ -849,8 +865,9 @@ export default function QuestionsPage() {
                       <td className="p-2">{correctAnswer || "—"}</td>
                       <td className="p-2 flex gap-2">
                         <Button
-                          size="icon"
+                          size="sm"
                           variant="outline"
+                          className="h-9 w-9"
                           aria-label="Edit question"
                           onClick={() => {
                             const clonedOptions =
@@ -890,8 +907,9 @@ export default function QuestionsPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                         <Button
-                          size="icon"
-                          variant="destructive"
+                          size="sm"
+                          variant="outline"
+                          className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
                           aria-label="Delete question"
                           onClick={() => handleDelete(q._id)}
                         >

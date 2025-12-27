@@ -6,21 +6,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../co
 import { useAuthStore } from "../stores/authStore";
 import { Loader2 } from "lucide-react";
 
-interface LoginResponse {
-  token: string;
-  user: {
-    id?: string;
-    _id?: string;
-    name: string;
-    email: string;
-    role?: string;
-  };
-}
-
 export default function LoginPage() {
   const navigate = useNavigate();
-  const setUser = useAuthStore((state) => state.setUser);
-  const setToken = useAuthStore((state) => state.setToken);
   const login = useAuthStore((state) => state.login);
 
   const [email, setEmail] = useState("");
