@@ -3,7 +3,7 @@ import PageHeader from "../components/PageHeader";
 import { apiFetch } from "../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface DashboardStats {
   averageScore: number;
@@ -53,12 +53,6 @@ export default function DashboardPage() {
       <PageHeader
         title="Admin Dashboard"
         description="At-a-glance metrics across the platform."
-        action={
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-            <span className="ml-2">Refresh</span>
-          </Button>
-        }
       />
 
       {error && (

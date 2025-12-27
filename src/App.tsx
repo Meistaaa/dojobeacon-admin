@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Layers, Users, ListChecks } from "lucide-react";
+import { LayoutDashboard, BookOpen, Layers, Users, ListChecks, LogOut } from "lucide-react";
 import DashboardPage from "./pages/DashboardPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import ChaptersPage from "./pages/ChaptersPage";
@@ -9,8 +9,11 @@ import LoginPage from "./pages/LoginPage";
 import QuestionsPage from "./pages/QuestionsPage";
 import "./index.css";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useAuthStore } from "./stores/authStore";
 
 export default function App() {
+  const { logout } = useAuthStore();
+
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/subjects", label: "Subjects", icon: BookOpen },
@@ -28,12 +31,12 @@ export default function App() {
           path="/*"
           element={
             <div className="min-h-screen bg-background text-foreground flex">
-              <aside className="w-64 bg-sidebar-background border-r border-sidebar-border hidden md:flex flex-col">
+              <aside className="hidden md:flex flex-col w-64 bg-sidebar-background border-r border-sidebar-border fixed inset-y-0">
                 <div className="px-6 py-5 border-b border-sidebar-border">
                   <p className="text-lg font-semibold text-sidebar-foreground">SmarterCat Admin</p>
                   <p className="text-xs text-muted-foreground mt-1">Control panel</p>
                 </div>
-                <nav className="flex-1 px-2 py-4 space-y-1">
+                <nav className="flex-1 px-2 py-4 space-y-1 overflow-hidden">
                   {navItems.map(({ to, label, icon: Icon }) => (
                     <NavLink
                       key={to}
@@ -51,9 +54,19 @@ export default function App() {
                     </NavLink>
                   ))}
                 </nav>
+                <div className="px-2 py-4 border-t border-sidebar-border">
+                  <button
+                    type="button"
+                    onClick={logout}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Logout</span>
+                  </button>
+                </div>
               </aside>
 
-              <main className="flex-1">
+              <main className="flex-1 md:ml-64">
                 <header className="md:hidden border-b border-border px-4 py-3">
                   <p className="text-base font-semibold">SmarterCat Admin</p>
                 </header>

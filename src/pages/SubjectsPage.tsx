@@ -6,7 +6,7 @@ import type { PaginationState } from "../lib/pagination";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
-import { Loader2, RefreshCcw, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Subject {
   _id: string;
@@ -125,16 +125,10 @@ export default function SubjectsPage() {
         title="Subjects"
         description="Manage subjects across curricula."
         action={
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-              <span className="ml-2">Refresh</span>
-            </Button>
-            <Button size="sm" onClick={() => setShowAdd(true)}>
-              <Plus className="h-4 w-4" />
-              <span className="ml-2">Add Subject</span>
-            </Button>
-          </div>
+          <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="ml-2">Add Subject</span>
+          </Button>
         }
       />
 
@@ -205,7 +199,7 @@ export default function SubjectsPage() {
                       <td className="px-3 py-2 capitalize">{subject.type || "—"}</td>
                       <td className="px-3 py-2 text-muted-foreground">{subject.description || "—"}</td>
                       <td className="px-3 py-2">
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 justify-end">
                           <Button
                             size="sm"
                             variant="outline"

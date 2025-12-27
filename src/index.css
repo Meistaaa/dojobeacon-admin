@@ -185,4 +185,10 @@
   body {
     @apply bg-background text-foreground;
   }
+  button,
+  [type="button"],
+  [type="submit"],
+  [role="button"] {
+    cursor: pointer;
+  }
 }

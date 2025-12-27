@@ -6,7 +6,7 @@ import type { PaginationState } from "../lib/pagination";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
 
 interface Subject {
   _id: string;
@@ -20,14 +20,24 @@ interface Chapter {
   description?: string;
 }
 
+type ChapterForm = {
+  name: string;
+  description: string;
+  subject: string;
+};
+
 export default function ChaptersPage() {
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [subjectFilter, setSubjectFilter] = useState<string>("all");
   const [pagination, setPagination] = useState<PaginationState>({ page: 1, pageSize: 10 });
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState<ChapterForm>({ name: "", description: "", subject: "" });
+  const [editing, setEditing] = useState<(ChapterForm & { _id: string }) | null>(null);
 
   const load = async () => {
     try {
@@ -69,15 +79,74 @@ export default function ChaptersPage() {
   const paged = paginate(filtered, pagination);
   const paginationInfo = buildPagination(filtered.length, pagination);
 
+  const resetForm = () => setForm({ name: "", description: "", subject: "" });
+
+  const handleCreate = async () => {
+    if (!form.name.trim() || !form.subject) {
+      setError("Chapter name and subject are required");
+      return;
+    }
+    try {
+      setSaving(true);
+      setError(null);
+      await apiFetch("/chapters", {
+        method: "POST",
+        data: form,
+        headers: { "Content-Type": "application/json" },
+      });
+      await load();
+      resetForm();
+      setShowAdd(false);
+    } catch {
+      setError("Failed to create chapter");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!editing) return;
+    if (!editing.name.trim() || !editing.subject) {
+      setError("Chapter name and subject are required");
+      return;
+    }
+    try {
+      setSaving(true);
+      setError(null);
+      const { _id, ...payload } = editing;
+      await apiFetch(`/chapters/${_id}`, {
+        method: "PUT",
+        data: payload,
+        headers: { "Content-Type": "application/json" },
+      });
+      await load();
+      setEditing(null);
+    } catch {
+      setError("Failed to update chapter");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!window.confirm("Delete this chapter?")) return;
+    try {
+      await apiFetch(`/chapters/${id}`, { method: "DELETE" });
+      await load();
+    } catch {
+      setError("Failed to delete chapter");
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Chapters"
         description="Browse chapters by subject."
         action={
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-            <span className="ml-2">Refresh</span>
+          <Button size="sm" onClick={() => setShowAdd(true)}>
+            <Plus className="h-4 w-4" />
+            <span className="ml-2">Add Chapter</span>
           </Button>
         }
       />
@@ -141,6 +210,7 @@ export default function ChaptersPage() {
                     <th className="px-3 py-2">Chapter</th>
                     <th className="px-3 py-2">Subject</th>
                     <th className="px-3 py-2">Description</th>
+                    <th className="px-3 py-2 w-24 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -153,6 +223,35 @@ export default function ChaptersPage() {
                           {subjectId ? subjectMap.get(subjectId) || "—" : "—"}
                         </td>
                         <td className="px-3 py-2 text-muted-foreground">{chapter.description || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex gap-2 justify-end">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-9 w-9"
+                              aria-label="Edit chapter"
+                              onClick={() =>
+                                setEditing({
+                                  _id: chapter._id,
+                                  name: chapter.name,
+                                  description: chapter.description || "",
+                                  subject: subjectId || "",
+                                })
+                              }
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
+                              aria-label="Delete chapter"
+                              onClick={() => handleDelete(chapter._id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}
@@ -185,6 +284,90 @@ export default function ChaptersPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ADD CHAPTER MODAL */}
+      {showAdd && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-lg rounded-xl bg-background p-6 space-y-4">
+            <h3 className="text-lg font-semibold">Add Chapter</h3>
+            <Input
+              placeholder="Chapter name"
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            <select
+              className="h-10 rounded border px-3"
+              value={form.subject}
+              onChange={(e) => setForm((p) => ({ ...p, subject: e.target.value }))}
+            >
+              <option value="">Select subject</option>
+              {subjects.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <Input
+              placeholder="Description (optional)"
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            />
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAdd(false);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button onClick={handleCreate} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EDIT CHAPTER MODAL */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-lg rounded-xl bg-background p-6 space-y-4">
+            <h3 className="text-lg font-semibold">Edit Chapter</h3>
+            <Input
+              placeholder="Chapter name"
+              value={editing.name}
+              onChange={(e) => setEditing((p) => (p ? { ...p, name: e.target.value } : p))}
+            />
+            <select
+              className="h-10 rounded border px-3"
+              value={editing.subject}
+              onChange={(e) => setEditing((p) => (p ? { ...p, subject: e.target.value } : p))}
+            >
+              <option value="">Select subject</option>
+              {subjects.map((s) => (
+                <option key={s._id} value={s._id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+            <Input
+              placeholder="Description (optional)"
+              value={editing.description}
+              onChange={(e) => setEditing((p) => (p ? { ...p, description: e.target.value } : p))}
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setEditing(null)}>
+                Cancel
+              </Button>
+              <Button onClick={handleUpdate} disabled={saving}>
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Update"}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

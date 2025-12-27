@@ -7,7 +7,7 @@ import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
-import { Loader2, RefreshCcw } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
 interface Test {
   _id: string;
@@ -83,12 +83,6 @@ export default function TestsPage() {
       <PageHeader
         title="Tests"
         description="Manage practice tests."
-        action={
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCcw className="h-4 w-4" />}
-            <span className="ml-2">Refresh</span>
-          </Button>
-        }
       />
 
       <Card>
