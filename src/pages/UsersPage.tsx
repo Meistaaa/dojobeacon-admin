@@ -5,7 +5,13 @@ import { paginate, buildPagination } from "../lib/pagination";
 import type { PaginationState } from "../lib/pagination";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { Loader2 } from "lucide-react";
 
 interface User {
@@ -22,7 +28,10 @@ export default function UsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
-  const [pagination, setPagination] = useState<PaginationState>({ page: 1, pageSize: 10 });
+  const [pagination, setPagination] = useState<PaginationState>({
+    page: 1,
+    pageSize: 10,
+  });
 
   const load = async () => {
     try {
@@ -47,7 +56,8 @@ export default function UsersPage() {
 
   const filtered = useMemo(() => {
     return users.filter((u) => {
-      const matchesRole = roleFilter === "all" || (u.role || "").toLowerCase() === roleFilter;
+      const matchesRole =
+        roleFilter === "all" || (u.role || "").toLowerCase() === roleFilter;
       const matchesSearch =
         u.name.toLowerCase().includes(search.toLowerCase()) ||
         u.email.toLowerCase().includes(search.toLowerCase());
@@ -60,10 +70,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Users"
-        description="Manage user accounts."
-      />
+      <PageHeader title="Users" description="Manage user accounts." />
 
       <Card>
         <CardHeader className="pb-2">
@@ -71,21 +78,21 @@ export default function UsersPage() {
           <CardDescription>Search and filter by role.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-3">
-          <Input placeholder="Search name or email" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <select
-            className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-          >
-            <option value="all">All roles</option>
-            <option value="admin">Admin</option>
-            <option value="user">User</option>
-          </select>
+          <Input
+            placeholder="Search name or email"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+
           <select
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
             value={pagination.pageSize}
             onChange={(e) =>
-              setPagination((prev) => ({ ...prev, page: 1, pageSize: Number(e.target.value) || 10 }))
+              setPagination((prev) => ({
+                ...prev,
+                page: 1,
+                pageSize: Number(e.target.value) || 10,
+              }))
             }
           >
             {[10, 20, 50].map((n) => (
@@ -127,11 +134,17 @@ export default function UsersPage() {
                 <tbody>
                   {paged.map((user) => (
                     <tr key={user._id} className="border-t border-border/70">
-                      <td className="px-3 py-2 font-medium">{user.name || "—"}</td>
+                      <td className="px-3 py-2 font-medium">
+                        {user.name || "—"}
+                      </td>
                       <td className="px-3 py-2">{user.email}</td>
-                      <td className="px-3 py-2 capitalize">{user.role || "user"}</td>
+                      <td className="px-3 py-2 capitalize">
+                        {user.role || "user"}
+                      </td>
                       <td className="px-3 py-2 text-muted-foreground">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "—"}
+                        {user.createdAt
+                          ? new Date(user.createdAt).toLocaleDateString()
+                          : "—"}
                       </td>
                     </tr>
                   ))}
@@ -148,7 +161,9 @@ export default function UsersPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page <= 1}
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page - 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page - 1 }))
+                  }
                 >
                   Prev
                 </Button>
@@ -156,7 +171,9 @@ export default function UsersPage() {
                   variant="outline"
                   size="sm"
                   disabled={pagination.page >= paginationInfo.pageCount}
-                  onClick={() => setPagination((prev) => ({ ...prev, page: prev.page + 1 }))}
+                  onClick={() =>
+                    setPagination((prev) => ({ ...prev, page: prev.page + 1 }))
+                  }
                 >
                   Next
                 </Button>

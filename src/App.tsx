@@ -1,12 +1,15 @@
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Layers, Users, ListChecks, LogOut } from "lucide-react";
+import { LayoutDashboard, BookOpen, Layers, Users, ListChecks, LogOut, Newspaper, Shield, FileText } from "lucide-react";
 import DashboardPage from "./pages/DashboardPage";
 import SubjectsPage from "./pages/SubjectsPage";
 import ChaptersPage from "./pages/ChaptersPage";
 import TestsPage from "./pages/TestsPage";
 import UsersPage from "./pages/UsersPage";
+import AdminsPage from "./pages/AdminsPage";
+import ContentPage from "./pages/ContentPage";
 import LoginPage from "./pages/LoginPage";
 import QuestionsPage from "./pages/QuestionsPage";
+import BlogPage from "./pages/BlogPage";
 import "./index.css";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
@@ -16,11 +19,14 @@ export default function App() {
 
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/blog", label: "Blog", icon: Newspaper },
     { to: "/subjects", label: "Subjects", icon: BookOpen },
     { to: "/chapters", label: "Chapters", icon: Layers },
     { to: "/tests", label: "Tests", icon: ListChecks },
     { to: "/questions", label: "Questions", icon: ListChecks },
     { to: "/users", label: "Users", icon: Users },
+    { to: "/admins", label: "Admins", icon: Shield },
+    { to: "/content", label: "Content", icon: FileText },
   ];
 
   return (
@@ -82,6 +88,14 @@ export default function App() {
                       }
                     />
                     <Route
+                      path="/blog"
+                      element={
+                        <ProtectedRoute>
+                          <BlogPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
                       path="/subjects"
                       element={
                         <ProtectedRoute>
@@ -118,6 +132,22 @@ export default function App() {
                       element={
                         <ProtectedRoute>
                           <UsersPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/admins"
+                      element={
+                        <ProtectedRoute>
+                          <AdminsPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/content"
+                      element={
+                        <ProtectedRoute>
+                          <ContentPage />
                         </ProtectedRoute>
                       }
                     />
