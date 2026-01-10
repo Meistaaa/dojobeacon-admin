@@ -3,6 +3,7 @@ import PageHeader from "../components/PageHeader";
 import { apiFetch, buildQuery } from "../lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../components/ui/card";
 import { Loader2 } from "lucide-react";
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 type AdminDashboardResponse = {
   totals: {
@@ -119,23 +120,22 @@ export default function DashboardPage() {
             </CardHeader>
             <CardContent className="space-y-3">
               {stats?.growthOverTime?.data?.length ? (
-                <div className="overflow-auto rounded-xl border border-border">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-muted/60 text-left">
-                      <tr>
-                        <th className="px-3 py-2">Period</th>
-                        <th className="px-3 py-2 text-right">New users</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {stats.growthOverTime.data.map((entry) => (
-                        <tr key={entry.period} className="border-t border-border/70">
-                          <td className="px-3 py-2">{entry.period}</td>
-                          <td className="px-3 py-2 text-right font-medium">{entry.count}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="h-64 rounded-xl border border-border bg-background px-3 py-2">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={stats.growthOverTime.data}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="period" tick={{ fontSize: 12 }} />
+                      <YAxis allowDecimals={false} />
+                      <Tooltip />
+                      <Line
+                        type="monotone"
+                        dataKey="count"
+                        stroke="var(--chart-1)"
+                        strokeWidth={2}
+                        dot={{ r: 3 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">No data available to display.</p>
@@ -149,14 +149,28 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg">Subscribers by Board</CardTitle>
                 <CardDescription>Top 10 boards by subscriber count.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent>
                 {stats?.subscribersByBoard?.length ? (
-                  stats.subscribersByBoard.map((entry) => (
-                    <div key={entry.board} className="flex items-center justify-between text-sm">
-                      <span>{entry.board}</span>
-                      <span className="font-medium">{entry.count}</span>
-                    </div>
-                  ))
+                  <div className="h-64 rounded-xl border border-border bg-background p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={stats.subscribersByBoard}
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="board"
+                          width={120}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="var(--chart-2)" radius={[4, 4, 4, 4]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No data available to display.</p>
                 )}
@@ -168,14 +182,28 @@ export default function DashboardPage() {
                 <CardTitle className="text-lg">Subscribers by Province</CardTitle>
                 <CardDescription>Top 10 provinces by subscriber count.</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
+              <CardContent>
                 {stats?.subscribersByProvince?.length ? (
-                  stats.subscribersByProvince.map((entry) => (
-                    <div key={entry.province} className="flex items-center justify-between text-sm">
-                      <span>{entry.province}</span>
-                      <span className="font-medium">{entry.count}</span>
-                    </div>
-                  ))
+                  <div className="h-64 rounded-xl border border-border bg-background p-2">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={stats.subscribersByProvince}
+                        layout="vertical"
+                        margin={{ top: 5, right: 20, left: 20, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" allowDecimals={false} />
+                        <YAxis
+                          type="category"
+                          dataKey="province"
+                          width={120}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip />
+                        <Bar dataKey="count" fill="var(--chart-3)" radius={[4, 4, 4, 4]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
                 ) : (
                   <p className="text-sm text-muted-foreground">No data available to display.</p>
                 )}
