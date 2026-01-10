@@ -33,6 +33,18 @@ export default function UsersPage() {
     pageSize: 10,
   });
 
+  const roleOptions = useMemo(() => {
+    const seen = new Set<string>();
+    users.forEach((user) => {
+      const normalized = (user.role ?? "").trim().toLowerCase();
+      if (!normalized || seen.has(normalized)) {
+        return;
+      }
+      seen.add(normalized);
+    });
+    return Array.from(seen);
+  }, [users]);
+
   const load = async () => {
     try {
       setLoading(true);
@@ -83,6 +95,19 @@ export default function UsersPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
+
+          <select
+            className="h-10 rounded-lg border border-input bg-background px-3 text-sm"
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+          >
+            <option value="all">All roles</option>
+            {roleOptions.map((role) => (
+              <option key={role} value={role}>
+                {role.charAt(0).toUpperCase() + role.slice(1)}
+              </option>
+            ))}
+          </select>
 
           <select
             className="h-10 rounded-lg border border-input bg-background px-3 text-sm"

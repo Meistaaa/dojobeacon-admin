@@ -125,7 +125,6 @@ export default function ContentPage() {
   const [aboutSaving, setAboutSaving] = useState(false);
 
   const [termsLanguage, setTermsLanguage] = useState("en");
-  const [termsId, setTermsId] = useState<string | null>(null);
   const [termsVersion, setTermsVersion] = useState<string | null>(null);
   const [termsContent, setTermsContent] = useState("");
   const [termsLoading, setTermsLoading] = useState(true);
@@ -179,12 +178,10 @@ export default function ContentPage() {
         headers: { "Accept-Language": termsLanguage },
       });
       const terms = res.data?.terms;
-      setTermsId(terms?._id ?? null);
       setTermsVersion(terms?.version ?? null);
       setTermsContent(terms?.content ?? "");
     } catch (err: any) {
       if (err?.response?.status === 404) {
-        setTermsId(null);
         setTermsVersion(null);
         setTermsContent("");
         return;
