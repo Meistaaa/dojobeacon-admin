@@ -2,7 +2,7 @@ import axios, { AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { useAuthStore } from "../stores/authStore";
 // import.meta.env.VITE_API_BASE_URL ||
 const api = axios.create({
-  baseURL: "http://localhost:3500/api/v1",
+  baseURL: "https://api.path2medpk.com/api/v1",
   headers: {
     "ngrok-skip-browser-warning": "true",
   },
