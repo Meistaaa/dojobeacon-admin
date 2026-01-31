@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Loader2, Plus, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Upload, Eye, ArrowLeft } from "lucide-react";
 
 /* ================= TYPES ================= */
 
@@ -65,12 +65,18 @@ type EditQuestionForm = NewQuestionForm & { _id: string };
 
 /* ================= COMPONENT ================= */
 
+type ViewMode = "subjects" | "chapters" | "questions";
+
 export default function QuestionsPage() {
   /* ---------- DATA ---------- */
   const [questions, setQuestions] = useState<Question[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
-  const [filteredChapters, setFilteredChapters] = useState<Chapter[]>([]);
+
+  /* ---------- NAVIGATION STATE ---------- */
+  const [viewMode, setViewMode] = useState<ViewMode>("subjects");
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
   /* ---------- UI STATE ---------- */
   const [loading, setLoading] = useState(true);
@@ -79,11 +85,10 @@ export default function QuestionsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadChapterIdRef = useRef<string | null>(null);
 
-  /* ---------- FILTERS ---------- */
+  /* ---------- FILTERS (for questions view) ---------- */
   const [search, setSearch] = useState("");
-  const [subjectFilter, setSubjectFilter] = useState("all");
-  const [chapterFilter, setChapterFilter] = useState("all");
 
   const [pagination, setPagination] = useState<PaginationState>({
     page: 1,
@@ -163,21 +168,6 @@ export default function QuestionsPage() {
     load();
   }, []);
 
-  /* ================= SUBJECT → CHAPTER ================= */
-
-  useEffect(() => {
-    if (!newQuestion.subject) {
-      setFilteredChapters([]);
-      return;
-    }
-
-    setFilteredChapters(
-      chapters.filter(
-        (c) => String(c.subject._id) === String(newQuestion.subject)
-      )
-    );
-  }, [newQuestion.subject, chapters]);
-
   /* ================= MAPS ================= */
 
   const subjectMap = useMemo(() => {
@@ -192,25 +182,45 @@ export default function QuestionsPage() {
     return map;
   }, [chapters]);
 
-  /* ================= FILTER ================= */
+  /* ================= QUESTION COUNTS ================= */
+
+  // Get question count for a subject
+  const getSubjectQuestionCount = (subjectId: string) => {
+    return questions.filter((q) => q.subject === subjectId).length;
+  };
+
+  // Get question count for a chapter
+  const getChapterQuestionCount = (chapterId: string) => {
+    return questions.filter((q) => q.chapter === chapterId).length;
+  };
+
+  // Get chapters for selected subject
+  const subjectChapters = useMemo(() => {
+    if (!selectedSubject) return [];
+    return chapters.filter(
+      (c) => String(c.subject._id) === String(selectedSubject)
+    );
+  }, [chapters, selectedSubject]);
+
+  /* ================= FILTER (for questions view) ================= */
 
   const filtered = useMemo(() => {
+    if (viewMode !== "questions" || !selectedChapter) return [];
     return questions.filter((q) => {
       return (
-        q.text.toLowerCase().includes(search.toLowerCase()) &&
-        (subjectFilter === "all" || q.subject === subjectFilter) &&
-        (chapterFilter === "all" || q.chapter === chapterFilter)
+        q.chapter === selectedChapter &&
+        q.text.toLowerCase().includes(search.toLowerCase())
       );
     });
-  }, [questions, search, subjectFilter, chapterFilter]);
+  }, [questions, search, selectedChapter, viewMode]);
 
   const paged = paginate(filtered, pagination);
   const paginationInfo = buildPagination(filtered.length, pagination);
 
-  // Reset to first page when filters/search change to ensure we search across full dataset
+  // Reset to first page when filters/search change
   useEffect(() => {
     setPagination((p) => ({ ...p, page: 1 }));
-  }, [search, subjectFilter, chapterFilter]);
+  }, [search, selectedChapter]);
 
   /* ================= OPTIONS ================= */
 
@@ -309,8 +319,8 @@ export default function QuestionsPage() {
       setNewQuestion({
         text: "",
         type: "mcq",
-        subject: "",
-        chapter: "",
+        subject: selectedSubject || "",
+        chapter: selectedChapter || "",
         options: [
           { text: "", isCorrect: false },
           { text: "", isCorrect: false },
@@ -401,11 +411,14 @@ export default function QuestionsPage() {
     fileInputRef.current?.click();
   };
 
-  const handleUploadChange = async (file: File | undefined) => {
+  const handleUploadChange = async (file: File | undefined, chapterId?: string) => {
     if (!file) return;
 
     const formData = new FormData();
     formData.append("file", file);
+    if (chapterId) {
+      formData.append("chapter", chapterId);
+    }
 
     try {
       setUploading(true);
@@ -422,7 +435,315 @@ export default function QuestionsPage() {
     }
   };
 
+  /* ================= NAVIGATION HANDLERS ================= */
+
+  const handleSubjectClick = (subjectId: string) => {
+    setSelectedSubject(subjectId);
+    setSelectedChapter(null);
+    setViewMode("chapters");
+  };
+
+  const handleChapterView = (chapterId: string) => {
+    setSelectedChapter(chapterId);
+    setViewMode("questions");
+    setPagination({ page: 1, pageSize: 10 });
+  };
+
+  const handleChapterUpload = (chapterId: string) => {
+    uploadChapterIdRef.current = chapterId;
+    fileInputRef.current?.click();
+  };
+
+  const handleBackToSubjects = () => {
+    setViewMode("subjects");
+    setSelectedSubject(null);
+    setSelectedChapter(null);
+  };
+
+  const handleBackToChapters = () => {
+    setViewMode("chapters");
+    setSelectedChapter(null);
+  };
+
   /* ================= UI ================= */
+
+  // SUBJECTS VIEW
+  const renderSubjectsView = () => (
+    <Card>
+      <CardHeader>
+        <CardTitle>Subjects</CardTitle>
+        <CardDescription>Select a subject to view its chapters</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-0">
+          {subjects.map((subject) => {
+            const questionCount = getSubjectQuestionCount(subject._id);
+            return (
+              <div
+                key={subject._id}
+                className="flex items-center justify-between p-4 border-b border-border/70 hover:bg-muted/30 cursor-pointer transition-colors"
+                onClick={() => handleSubjectClick(subject._id)}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="font-medium text-base">{subject.name}</span>
+                  <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                    {questionCount} {questionCount === 1 ? "Question" : "Questions"}
+                  </span>
+                </div>
+                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  // CHAPTERS VIEW
+  const renderChaptersView = () => {
+    const selectedSubjectName = subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackToSubjects}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Subjects
+          </Button>
+          <div>
+            <h2 className="text-xl font-semibold">{selectedSubjectName}</h2>
+            <p className="text-sm text-muted-foreground">
+              {getSubjectQuestionCount(selectedSubject || "")} total questions
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Chapters</CardTitle>
+            <CardDescription>Select a chapter to view or upload questions</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-0">
+              {subjectChapters.map((chapter) => {
+                const questionCount = getChapterQuestionCount(chapter._id);
+                return (
+                  <div
+                    key={chapter._id}
+                    className="flex items-center justify-between p-4 border-b border-border/70"
+                  >
+                    <div className="flex-1">
+                      <p className="font-medium text-base">{chapter.name}</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {questionCount} {questionCount === 1 ? "question" : "questions"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleChapterUpload(chapter._id)}
+                        disabled={uploading}
+                      >
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleChapterView(chapter._id)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+              {subjectChapters.length === 0 && (
+                <div className="p-8 text-center text-muted-foreground">
+                  No chapters found for this subject
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
+  // QUESTIONS VIEW
+  const renderQuestionsView = () => {
+    const selectedSubjectName = subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
+    const selectedChapterName = chapterMap.get(selectedChapter || "")?.name || "Chapter";
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackToChapters}
+          >
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Chapters
+          </Button>
+          <div>
+            <h2 className="text-xl font-semibold">
+              {selectedSubjectName} - {selectedChapterName}
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              {filtered.length} {filtered.length === 1 ? "question" : "questions"}
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg">Filters</CardTitle>
+            <CardDescription>Search questions in this chapter</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Input
+              placeholder="Search question"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Questions</CardTitle>
+            <CardDescription>{filtered.length} total</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {filtered.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">
+                No questions found in this chapter
+              </div>
+            ) : (
+              <>
+                <div className="overflow-auto rounded-xl border border-border">
+                  <table className="w-full text-sm">
+                    <thead className="bg-muted">
+                      <tr>
+                        <th className="p-2 text-left">Text</th>
+                        <th className="p-2 text-left">Type</th>
+                        <th className="p-2 text-left">Correct Answer</th>
+                        <th className="p-2 text-left w-32">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paged.map((q) => {
+                        const correctAnswer =
+                          q.correctAnswer ||
+                          (q.type === "fill_blank"
+                            ? q.answer
+                            : q.options?.find((o) => o.isCorrect)?.text || q.answer);
+
+                        return (
+                          <tr key={q._id} className="border-t">
+                            <td className="p-2">{q.text}</td>
+                            <td className="p-2 uppercase">{q.type}</td>
+                            <td className="p-2">{correctAnswer || "—"}</td>
+                            <td className="p-2 flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 w-9"
+                                aria-label="Edit question"
+                                onClick={() => {
+                                  const clonedOptions =
+                                    q.type === "fill_blank"
+                                      ? []
+                                      : q.options?.length
+                                      ? q.options.map((opt) => ({
+                                          text: opt.text,
+                                          isCorrect: !!opt.isCorrect,
+                                        }))
+                                      : [
+                                          { text: "", isCorrect: true },
+                                          { text: "", isCorrect: false },
+                                          { text: "", isCorrect: false },
+                                          { text: "", isCorrect: false },
+                                        ];
+
+                                  if (
+                                    q.type !== "fill_blank" &&
+                                    clonedOptions.length &&
+                                    !clonedOptions.some((o) => o.isCorrect)
+                                  ) {
+                                    clonedOptions[0] = { ...clonedOptions[0], isCorrect: true };
+                                  }
+
+                                  setEditingQuestion({
+                                    _id: q._id,
+                                    text: q.text,
+                                    type: q.type,
+                                    subject: q.subject,
+                                    chapter: q.chapter,
+                                    options: clonedOptions,
+                                    answer: q.answer || "",
+                                  });
+                                }}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
+                                aria-label="Delete question"
+                                onClick={() => handleDelete(q._id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex justify-between mt-4">
+                  <span className="text-sm text-muted-foreground">
+                    Page {pagination.page} of {paginationInfo.pageCount}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pagination.page === 1}
+                      onClick={() =>
+                        setPagination((p) => ({ ...p, page: p.page - 1 }))
+                      }
+                    >
+                      Prev
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={pagination.page >= paginationInfo.pageCount}
+                      onClick={() =>
+                        setPagination((p) => ({ ...p, page: p.page + 1 }))
+                      }
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -430,6 +751,7 @@ export default function QuestionsPage() {
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
           <div className="w-full max-w-3xl rounded-xl bg-background p-6 space-y-4">
+            <h3 className="text-lg font-semibold">Add New Question</h3>
             <Input
               placeholder="Question text"
               value={newQuestion.text}
@@ -475,7 +797,7 @@ export default function QuestionsPage() {
             <div className="grid grid-cols-2 gap-2">
               <select
                 className="h-10 rounded border px-3"
-                value={newQuestion.subject}
+                value={newQuestion.subject || selectedSubject || ""}
                 onChange={(e) =>
                   setNewQuestion((p) => ({
                     ...p,
@@ -494,13 +816,20 @@ export default function QuestionsPage() {
 
               <select
                 className="h-10 rounded border px-3"
-                value={newQuestion.chapter}
+                value={newQuestion.chapter || selectedChapter || ""}
                 onChange={(e) =>
                   setNewQuestion((p) => ({ ...p, chapter: e.target.value }))
                 }
               >
                 <option value="">Select chapter</option>
-                {filteredChapters.map((c) => (
+                {chapters
+                  .filter(
+                    (c) =>
+                      !newQuestion.subject && !selectedSubject
+                        ? true
+                        : String(c.subject._id) === String(newQuestion.subject || selectedSubject)
+                  )
+                  .map((c) => (
                   <option key={c._id} value={c._id}>
                     {c.name}
                   </option>
@@ -750,207 +1079,59 @@ export default function QuestionsPage() {
       <PageHeader
         title="Questions"
         action={
-          <div className="flex gap-2">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".doc,.docx,.xls,.xlsx"
-              className="hidden"
-              onChange={async (e) => {
-                await handleUploadChange(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
+          viewMode === "questions" && (
             <Button
               size="sm"
-              variant="outline"
-              onClick={handleUploadClick}
-              disabled={uploading}
+              onClick={() => {
+                setNewQuestion({
+                  text: "",
+                  type: "mcq",
+                  subject: selectedSubject || "",
+                  chapter: selectedChapter || "",
+                  options: [
+                    { text: "", isCorrect: false },
+                    { text: "", isCorrect: false },
+                    { text: "", isCorrect: false },
+                    { text: "", isCorrect: false },
+                  ],
+                  answer: "",
+                });
+                setShowAddDialog(true);
+              }}
             >
-              {uploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Upload File"
-              )}
+              <Plus className="h-4 w-4 mr-2" />
+              Add Question
             </Button>
-            <Button size="sm" onClick={() => setShowAddDialog(true)}>
-              <Plus className="h-4 w-4" /> Add Question
-            </Button>
-          </div>
+          )
         }
       />
 
-      {/* FILTERS */}
-      <Card>
-        <CardContent className="grid gap-3 sm:grid-cols-3">
-          <Input
-            placeholder="Search question"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <select
-            className="h-10 rounded border px-3"
-            value={subjectFilter}
-            onChange={(e) => {
-              setSubjectFilter(e.target.value);
-              setChapterFilter("all");
-            }}
-          >
-            <option value="all">All subjects</option>
-            {subjects.map((s) => (
-              <option key={s._id} value={s._id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="h-10 rounded border px-3"
-            value={chapterFilter}
-            onChange={(e) => setChapterFilter(e.target.value)}
-          >
-            <option value="all">All chapters</option>
-            {chapters
-              .filter(
-                (c) =>
-                  subjectFilter === "all" ||
-                  String(c.subject._id) === String(subjectFilter)
-              )
-              .map((c) => (
-                <option key={c._id} value={c._id}>
-                  {c.name}
-                </option>
-              ))}
-          </select>
-        </CardContent>
-      </Card>
+      {/* HIDDEN FILE INPUT FOR UPLOAD */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".doc,.docx,.xls,.xlsx"
+        className="hidden"
+        onChange={async (e) => {
+          const file = e.target.files?.[0];
+          const chapterId = uploadChapterIdRef.current || selectedChapter || undefined;
+          await handleUploadChange(file, chapterId);
+          e.target.value = "";
+          uploadChapterIdRef.current = null;
+        }}
+      />
 
-      {/* TABLE */}
+      {/* MAIN CONTENT BASED ON VIEW MODE */}
       {loading ? (
         <div className="flex justify-center py-20">
-          <Loader2 className="animate-spin" />
+          <Loader2 className="h-10 w-10 animate-spin text-accent" />
         </div>
       ) : (
-        <Card>
-          <CardHeader>
-            <CardTitle>Questions</CardTitle>
-            <CardDescription>{filtered.length} total</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <table className="w-full text-sm border">
-              <thead className="bg-muted">
-                <tr>
-                  <th className="p-2 text-left">Text</th>
-                  <th className="p-2 text-left">Subject</th>
-                  <th className="p-2 text-left">Chapter</th>
-                  <th className="p-2 text-left">Type</th>
-                  <th className="p-2 text-left">Correct Answer</th>
-                  <th className="p-2 text-left w-32">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paged.map((q) => {
-                  const chapter = chapterMap.get(q.chapter);
-                  const correctAnswer =
-                    q.correctAnswer ||
-                    (q.type === "fill_blank"
-                      ? q.answer
-                      : q.options?.find((o) => o.isCorrect)?.text || q.answer);
-
-                  return (
-                    <tr key={q._id} className="border-t">
-                      <td className="p-2">{q.text}</td>
-                      <td className="p-2">{subjectMap.get(q.subject)}</td>
-                      <td className="p-2">{chapter?.name}</td>
-                      <td className="p-2 uppercase">{q.type}</td>
-                      <td className="p-2">{correctAnswer || "—"}</td>
-                      <td className="p-2 flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-9 w-9"
-                          aria-label="Edit question"
-                          onClick={() => {
-                            const clonedOptions =
-                              q.type === "fill_blank"
-                                ? []
-                                : q.options?.length
-                                ? q.options.map((opt) => ({
-                                    text: opt.text,
-                                    isCorrect: !!opt.isCorrect,
-                                  }))
-                                : [
-                                    { text: "", isCorrect: true },
-                                    { text: "", isCorrect: false },
-                                    { text: "", isCorrect: false },
-                                    { text: "", isCorrect: false },
-                                  ];
-
-                            if (
-                              q.type !== "fill_blank" &&
-                              clonedOptions.length &&
-                              !clonedOptions.some((o) => o.isCorrect)
-                            ) {
-                              clonedOptions[0] = { ...clonedOptions[0], isCorrect: true };
-                            }
-
-                            setEditingQuestion({
-                              _id: q._id,
-                              text: q.text,
-                              type: q.type,
-                              subject: q.subject,
-                              chapter: q.chapter,
-                              options: clonedOptions,
-                              answer: q.answer || "",
-                            });
-                          }}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
-                          aria-label="Delete question"
-                          onClick={() => handleDelete(q._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div className="flex justify-between mt-4">
-              <span>
-                Page {pagination.page} of {paginationInfo.pageCount}
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pagination.page === 1}
-                  onClick={() =>
-                    setPagination((p) => ({ ...p, page: p.page - 1 }))
-                  }
-                >
-                  Prev
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={pagination.page >= paginationInfo.pageCount}
-                  onClick={() =>
-                    setPagination((p) => ({ ...p, page: p.page + 1 }))
-                  }
-                >
-                  Next
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <>
+          {viewMode === "subjects" && renderSubjectsView()}
+          {viewMode === "chapters" && renderChaptersView()}
+          {viewMode === "questions" && renderQuestionsView()}
+        </>
       )}
 
       {error && (
