@@ -7,7 +7,6 @@ import { paginate, buildPagination } from "../lib/pagination";
 import type { PaginationState } from "../lib/pagination";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
-import { MultiSelect } from "../components/ui/multi-select";
 import {
   Card,
   CardContent,
@@ -34,7 +33,6 @@ type AdminFormState = {
   password: string;
   firstName: string;
   lastName: string;
-  permissions: string;
 };
 
 const initialForm: AdminFormState = {
@@ -42,7 +40,70 @@ const initialForm: AdminFormState = {
   password: "",
   firstName: "",
   lastName: "",
-  permissions: "",
+};
+
+const PERMISSION_LABELS: Record<string, string> = {
+  manageQuestionBank: "Manage Question Bank",
+  createManageEvents: "Create/Manage Events",
+  viewAnalytics: "View Analytics",
+  createOtherSubAdmins: "Create Other Sub-Admins",
+  viewEditUserData: "View/Edit User Data",
+  uploadManageBlogs: "Upload/Manage Blogs",
+  editPaymentSettings: "Edit Payment Settings",
+  deleteOrEditContent: "Delete or Edit Content",
+};
+
+const LEGACY_PERMISSION_ALIASES: Record<string, string> = {
+  "subject:create": "manageQuestionBank",
+  "subject:update": "manageQuestionBank",
+  "subject:delete": "manageQuestionBank",
+  "subject:view": "manageQuestionBank",
+  "chapter:create": "manageQuestionBank",
+  "chapter:update": "manageQuestionBank",
+  "chapter:delete": "manageQuestionBank",
+  "chapter:view": "manageQuestionBank",
+  "test:create": "manageQuestionBank",
+  "test:update": "manageQuestionBank",
+  "test:delete": "manageQuestionBank",
+  "test:view": "manageQuestionBank",
+  "question_bank:create": "manageQuestionBank",
+  "question_bank:update": "manageQuestionBank",
+  "question_bank:delete": "manageQuestionBank",
+  "question_bank:upload": "manageQuestionBank",
+  "question_bank:view": "manageQuestionBank",
+  "blog:create": "uploadManageBlogs",
+  "blog:update": "uploadManageBlogs",
+  "blog:delete": "uploadManageBlogs",
+  "blog:view": "uploadManageBlogs",
+};
+
+const normalizePermissions = (permissions: string[] = []) => {
+  const normalized = new Set<string>();
+  permissions.forEach((permission) => {
+    const trimmed = String(permission || "").trim();
+    if (!trimmed) return;
+    if (PERMISSION_LABELS[trimmed]) {
+      normalized.add(trimmed);
+      return;
+    }
+    const alias = LEGACY_PERMISSION_ALIASES[trimmed];
+    if (alias) {
+      normalized.add(alias);
+    }
+  });
+  return Array.from(normalized);
+};
+
+const formatPermissionLabel = (permission: string) => {
+  if (!permission) return "";
+  if (PERMISSION_LABELS[permission]) {
+    return PERMISSION_LABELS[permission];
+  }
+  return permission
+    .replace(/([A-Z])/g, " $1")
+    .replace(/[:_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
 export default function AdminsPage() {
@@ -64,6 +125,10 @@ export default function AdminsPage() {
   const [editingAdmin, setEditingAdmin] = useState<AdminProfile | null>(null);
   const [selectedPermissions, setSelectedPermissions] = useState<string[]>([]);
   const [permissionsDirty, setPermissionsDirty] = useState(false);
+  const availablePermissionFallback = Object.keys(PERMISSION_LABELS);
+  const availablePermissionOptions = permissionsOptions.length
+    ? permissionsOptions
+    : availablePermissionFallback;
 
   const loadAdmins = async () => {
     try {
@@ -127,6 +192,15 @@ export default function AdminsPage() {
   const paged = paginate(filtered, pagination);
   const paginationInfo = buildPagination(filtered.length, pagination);
 
+  const handlePermissionToggle = (permission: string) => {
+    setSelectedPermissions((prev) =>
+      prev.includes(permission)
+        ? prev.filter((perm) => perm !== permission)
+        : [...prev, permission]
+    );
+    setPermissionsDirty(true);
+  };
+
   const handleSubmit = async () => {
     if (!canManageAdmins) return;
     const email = form.email.trim();
@@ -136,12 +210,7 @@ export default function AdminsPage() {
       return;
     }
 
-    const permissions = selectedPermissions.length
-      ? selectedPermissions
-      : form.permissions
-          .split(",")
-          .map((perm) => perm.trim())
-          .filter(Boolean);
+    const permissions = normalizePermissions(selectedPermissions);
 
     try {
       setSaving(true);
@@ -219,7 +288,7 @@ export default function AdminsPage() {
       lastName: nameParts.slice(1).join(" "),
       permissions: "",
     });
-    setSelectedPermissions(profile.user?.permissions || []);
+    setSelectedPermissions(normalizePermissions(profile.user?.permissions || []));
     setPermissionsDirty(false);
     setShowModal(true);
   };
@@ -428,37 +497,33 @@ export default function AdminsPage() {
                 }
               />
               <div className="md:col-span-2">
-                {permissionsOptions.length > 0 ? (
-                  <div className="space-y-2">
+                <div className="space-y-3 rounded-xl border border-border bg-background/60 p-4">
+                  <div>
+                    <p className="text-sm font-semibold leading-none">Permissions</p>
                     <p className="text-xs text-muted-foreground">
-                      Permissions (hold Cmd/Ctrl to select multiple)
+                      Assign the permissions this admin should have.
                     </p>
-                    <MultiSelect
-                      value={selectedPermissions}
-                      onValueChange={(values) => {
-                        setSelectedPermissions(values);
-                        setPermissionsDirty(true);
-                      }}
-                      options={permissionsOptions.map((perm) => ({
-                        label: perm,
-                        value: perm,
-                      }))}
-                      placeholder="Select permissions"
-                    />
                   </div>
-                ) : (
-                  <Input
-                    placeholder="Permissions (comma separated)"
-                    value={form.permissions}
-                    onChange={(e) => {
-                      setPermissionsDirty(true);
-                      setForm((prev) => ({
-                        ...prev,
-                        permissions: e.target.value,
-                      }));
-                    }}
-                  />
-                )}
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {availablePermissionOptions.map((permission) => {
+                      const checked = selectedPermissions.includes(permission);
+                      return (
+                        <label
+                          key={permission}
+                          className="flex items-center gap-3 rounded-md border border-border/70 px-3 py-2 text-sm transition hover:border-accent"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handlePermissionToggle(permission)}
+                            className="h-4 w-4 rounded border border-border text-accent focus-visible:ring-2 focus-visible:ring-ring"
+                          />
+                          <span>{formatPermissionLabel(permission)}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
               </div>
             </div>
 

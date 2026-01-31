@@ -12,7 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Loader2, Plus, Pencil, Trash2, ChevronDown, ChevronUp, Upload, Eye, ArrowLeft } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, ChevronDown, Upload, Eye, ArrowLeft } from "lucide-react";
 
 /* ================= TYPES ================= */
 
@@ -169,12 +169,6 @@ export default function QuestionsPage() {
   }, []);
 
   /* ================= MAPS ================= */
-
-  const subjectMap = useMemo(() => {
-    const map = new Map<string, string>();
-    subjects.forEach((s) => map.set(s._id, s.name));
-    return map;
-  }, [subjects]);
 
   const chapterMap = useMemo(() => {
     const map = new Map<string, Chapter>();
@@ -405,10 +399,6 @@ export default function QuestionsPage() {
     } catch {
       setError("Failed to delete question");
     }
-  };
-
-  const handleUploadClick = () => {
-    fileInputRef.current?.click();
   };
 
   const handleUploadChange = async (file: File | undefined, chapterId?: string) => {
