@@ -7,8 +7,6 @@ import {
 } from "react-router-dom";
 import {
   LayoutDashboard,
-  BookOpen,
-  Layers,
   Users,
   ListChecks,
   LogOut,
