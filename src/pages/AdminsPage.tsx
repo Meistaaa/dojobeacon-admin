@@ -286,7 +286,6 @@ export default function AdminsPage() {
       password: "",
       firstName: nameParts[0] || "",
       lastName: nameParts.slice(1).join(" "),
-      permissions: "",
     });
     setSelectedPermissions(normalizePermissions(profile.user?.permissions || []));
     setPermissionsDirty(false);
