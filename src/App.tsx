@@ -1,8 +1,22 @@
-import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from "react-router-dom";
-import { LayoutDashboard, BookOpen, Layers, Users, ListChecks, LogOut, Newspaper, Shield, FileText } from "lucide-react";
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  NavLink,
+  Navigate,
+} from "react-router-dom";
+import {
+  LayoutDashboard,
+  BookOpen,
+  Layers,
+  Users,
+  ListChecks,
+  LogOut,
+  Newspaper,
+  Shield,
+  FileText,
+} from "lucide-react";
 import DashboardPage from "./pages/DashboardPage";
-import SubjectsPage from "./pages/SubjectsPage";
-import ChaptersPage from "./pages/ChaptersPage";
 import TestsPage from "./pages/TestsPage";
 import UsersPage from "./pages/UsersPage";
 import AdminsPage from "./pages/AdminsPage";
@@ -20,10 +34,8 @@ export default function App() {
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/blog", label: "Blog", icon: Newspaper },
-    { to: "/subjects", label: "Subjects", icon: BookOpen },
-    { to: "/chapters", label: "Chapters", icon: Layers },
     { to: "/tests", label: "Tests", icon: ListChecks },
-    { to: "/questions", label: "Questions", icon: ListChecks },
+    { to: "/questions", label: "Questions Bank", icon: ListChecks },
     { to: "/users", label: "Users", icon: Users },
     { to: "/admins", label: "Admins", icon: Shield },
     { to: "/content", label: "Content", icon: FileText },
@@ -39,8 +51,12 @@ export default function App() {
             <div className="min-h-screen bg-background text-foreground flex">
               <aside className="hidden md:flex flex-col w-64 bg-sidebar-background border-r border-sidebar-border fixed inset-y-0">
                 <div className="px-6 py-5 border-b border-sidebar-border">
-                  <p className="text-lg font-semibold text-sidebar-foreground">SmarterCat Admin</p>
-                  <p className="text-xs text-muted-foreground mt-1">Control panel</p>
+                  <p className="text-lg font-semibold text-sidebar-foreground">
+                    SmarterCat Admin
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Control panel
+                  </p>
                 </div>
                 <nav className="flex-1 px-2 py-4 space-y-1 overflow-hidden">
                   {navItems.map(({ to, label, icon: Icon }) => (
@@ -78,7 +94,10 @@ export default function App() {
                 </header>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
                   <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                    <Route
+                      path="/"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
                     <Route
                       path="/dashboard"
                       element={
@@ -95,22 +114,7 @@ export default function App() {
                         </ProtectedRoute>
                       }
                     />
-                    <Route
-                      path="/subjects"
-                      element={
-                        <ProtectedRoute>
-                          <SubjectsPage />
-                        </ProtectedRoute>
-                      }
-                    />
-                    <Route
-                      path="/chapters"
-                      element={
-                        <ProtectedRoute>
-                          <ChaptersPage />
-                        </ProtectedRoute>
-                      }
-                    />
+
                     <Route
                       path="/tests"
                       element={
@@ -151,7 +155,10 @@ export default function App() {
                         </ProtectedRoute>
                       }
                     />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                    <Route
+                      path="*"
+                      element={<Navigate to="/dashboard" replace />}
+                    />
                   </Routes>
                 </div>
               </main>

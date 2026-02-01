@@ -12,22 +12,33 @@ import {
   CardHeader,
   CardTitle,
 } from "../components/ui/card";
-import { Loader2, Plus, Pencil, Trash2, ChevronDown, Upload, Eye, ArrowLeft } from "lucide-react";
+import {
+  Loader2,
+  Plus,
+  Pencil,
+  Trash2,
+  ChevronDown,
+  Upload,
+  Eye,
+  ArrowLeft,
+} from "lucide-react";
 
 /* ================= TYPES ================= */
+
+type SubjectType = "mdcat" | "o_levels" | "a_levels";
 
 interface Subject {
   _id: string;
   name: string;
+  description?: string;
+  type?: SubjectType;
 }
 
 interface Chapter {
   _id: string;
   name: string;
-  subject: {
-    _id: string;
-    name: string;
-  };
+  subject: { _id: string; name: string } | string;
+  description?: string;
 }
 
 interface Question {
@@ -63,6 +74,35 @@ type NewQuestionForm = {
 };
 type EditQuestionForm = NewQuestionForm & { _id: string };
 
+type SubjectForm = {
+  name: string;
+  description: string;
+  type: SubjectType;
+};
+
+type ChapterForm = {
+  name: string;
+  description: string;
+  subject: string;
+};
+
+const SUBJECT_TYPES: SubjectType[] = ["mdcat", "o_levels", "a_levels"];
+const EMPTY_SUBJECT_FORM: SubjectForm = {
+  name: "",
+  description: "",
+  type: "mdcat",
+};
+const EMPTY_CHAPTER_FORM: ChapterForm = {
+  name: "",
+  description: "",
+  subject: "",
+};
+
+const getChapterSubjectId = (chapter: Chapter) => {
+  if (typeof chapter.subject === "string") return chapter.subject;
+  return chapter.subject?._id ?? "";
+};
+
 /* ================= COMPONENT ================= */
 
 type ViewMode = "subjects" | "chapters" | "questions";
@@ -86,6 +126,16 @@ export default function QuestionsPage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const uploadChapterIdRef = useRef<string | null>(null);
+  const [subjectForm, setSubjectForm] =
+    useState<SubjectForm>(EMPTY_SUBJECT_FORM);
+  const [showSubjectModal, setShowSubjectModal] = useState(false);
+  const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
+  const [subjectProcessing, setSubjectProcessing] = useState(false);
+  const [chapterForm, setChapterForm] =
+    useState<ChapterForm>(EMPTY_CHAPTER_FORM);
+  const [showChapterModal, setShowChapterModal] = useState(false);
+  const [editingChapter, setEditingChapter] = useState<Chapter | null>(null);
+  const [chapterProcessing, setChapterProcessing] = useState(false);
 
   /* ---------- FILTERS (for questions view) ---------- */
   const [search, setSearch] = useState("");
@@ -109,7 +159,8 @@ export default function QuestionsPage() {
     ],
     answer: "",
   });
-  const [editingQuestion, setEditingQuestion] = useState<EditQuestionForm | null>(null);
+  const [editingQuestion, setEditingQuestion] =
+    useState<EditQuestionForm | null>(null);
 
   /* ================= LOAD DATA ================= */
 
@@ -191,9 +242,7 @@ export default function QuestionsPage() {
   // Get chapters for selected subject
   const subjectChapters = useMemo(() => {
     if (!selectedSubject) return [];
-    return chapters.filter(
-      (c) => String(c.subject._id) === String(selectedSubject)
-    );
+    return chapters.filter((c) => getChapterSubjectId(c) === selectedSubject);
   }, [chapters, selectedSubject]);
 
   /* ================= FILTER (for questions view) ================= */
@@ -265,7 +314,7 @@ export default function QuestionsPage() {
 
     if (newQuestion.type !== "fill_blank") {
       const correctCount = newQuestion.options.filter(
-        (o) => o.isCorrect
+        (o) => o.isCorrect,
       ).length;
 
       if (correctCount !== 1) {
@@ -333,13 +382,19 @@ export default function QuestionsPage() {
   const submitEdit = async () => {
     if (!editingQuestion) return;
 
-    if (!editingQuestion.text || !editingQuestion.subject || !editingQuestion.chapter) {
+    if (
+      !editingQuestion.text ||
+      !editingQuestion.subject ||
+      !editingQuestion.chapter
+    ) {
       setError("Question text, subject and chapter are required.");
       return;
     }
 
     if (editingQuestion.type !== "fill_blank") {
-      const correctCount = editingQuestion.options.filter((o) => o.isCorrect).length;
+      const correctCount = editingQuestion.options.filter(
+        (o) => o.isCorrect,
+      ).length;
 
       if (correctCount !== 1) {
         setError("Select exactly one correct option.");
@@ -352,7 +407,10 @@ export default function QuestionsPage() {
       }
     }
 
-    if (editingQuestion.type === "fill_blank" && !editingQuestion.answer.trim()) {
+    if (
+      editingQuestion.type === "fill_blank" &&
+      !editingQuestion.answer.trim()
+    ) {
       setError("Correct answer is required.");
       return;
     }
@@ -401,7 +459,10 @@ export default function QuestionsPage() {
     }
   };
 
-  const handleUploadChange = async (file: File | undefined, chapterId?: string) => {
+  const handleUploadChange = async (
+    file: File | undefined,
+    chapterId?: string,
+  ) => {
     if (!file) return;
 
     const formData = new FormData();
@@ -455,14 +516,172 @@ export default function QuestionsPage() {
     setSelectedChapter(null);
   };
 
+  const openSubjectModal = (subject?: Subject) => {
+    setEditingSubject(subject ?? null);
+    setSubjectForm({
+      name: subject?.name ?? "",
+      description: subject?.description ?? "",
+      type: subject?.type ?? "mdcat",
+    });
+    setShowSubjectModal(true);
+  };
+
+  const closeSubjectModal = () => {
+    setShowSubjectModal(false);
+    setEditingSubject(null);
+    setSubjectForm({ ...EMPTY_SUBJECT_FORM });
+  };
+
+  const submitSubjectForm = async () => {
+    if (!subjectForm.name.trim()) {
+      setError("Subject name is required.");
+      return;
+    }
+
+    const payload = {
+      name: subjectForm.name.trim(),
+      description: subjectForm.description.trim(),
+      type: subjectForm.type,
+    };
+
+    try {
+      setSubjectProcessing(true);
+      setError(null);
+
+      if (editingSubject) {
+        await apiFetch(`/subjects/${editingSubject._id}`, {
+          method: "PUT",
+          data: payload,
+          headers: { "Content-Type": "application/json" },
+        });
+      } else {
+        await apiFetch("/subjects", {
+          method: "POST",
+          data: payload,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      await load();
+      closeSubjectModal();
+    } catch {
+      setError(
+        editingSubject
+          ? "Failed to update subject"
+          : "Failed to create subject",
+      );
+    } finally {
+      setSubjectProcessing(false);
+    }
+  };
+
+  const handleDeleteSubject = async (subjectId: string) => {
+    if (!window.confirm("Delete this subject?")) return;
+    try {
+      await apiFetch(`/subjects/${subjectId}`, { method: "DELETE" });
+      if (selectedSubject === subjectId) {
+        handleBackToSubjects();
+      }
+      await load();
+    } catch {
+      setError("Failed to delete subject");
+    }
+  };
+
+  const openChapterModal = (chapter?: Chapter) => {
+    const subjectId = chapter
+      ? getChapterSubjectId(chapter)
+      : selectedSubject || "";
+    setEditingChapter(chapter ?? null);
+    setChapterForm({
+      name: chapter?.name ?? "",
+      description: chapter?.description ?? "",
+      subject: subjectId,
+    });
+    setShowChapterModal(true);
+  };
+
+  const closeChapterModal = () => {
+    setShowChapterModal(false);
+    setEditingChapter(null);
+    setChapterForm({
+      ...EMPTY_CHAPTER_FORM,
+      subject: selectedSubject || "",
+    });
+  };
+
+  const submitChapterForm = async () => {
+    if (!chapterForm.name.trim() || !chapterForm.subject) {
+      setError("Chapter name and subject are required.");
+      return;
+    }
+
+    const payload = {
+      name: chapterForm.name.trim(),
+      description: chapterForm.description.trim(),
+      subject: chapterForm.subject,
+    };
+
+    try {
+      setChapterProcessing(true);
+      setError(null);
+
+      if (editingChapter) {
+        await apiFetch(`/chapters/${editingChapter._id}`, {
+          method: "PUT",
+          data: payload,
+          headers: { "Content-Type": "application/json" },
+        });
+      } else {
+        await apiFetch("/chapters", {
+          method: "POST",
+          data: payload,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      await load();
+      closeChapterModal();
+    } catch {
+      setError(
+        editingChapter
+          ? "Failed to update chapter"
+          : "Failed to create chapter",
+      );
+    } finally {
+      setChapterProcessing(false);
+    }
+  };
+
+  const handleDeleteChapter = async (chapterId: string) => {
+    if (!window.confirm("Delete this chapter?")) return;
+    try {
+      await apiFetch(`/chapters/${chapterId}`, { method: "DELETE" });
+      if (selectedChapter === chapterId) {
+        handleBackToChapters();
+      }
+      await load();
+    } catch {
+      setError("Failed to delete chapter");
+    }
+  };
+
   /* ================= UI ================= */
 
   // SUBJECTS VIEW
   const renderSubjectsView = () => (
     <Card>
-      <CardHeader>
-        <CardTitle>Subjects</CardTitle>
-        <CardDescription>Select a subject to view its chapters</CardDescription>
+      <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+        <div>
+          <CardTitle>Subjects</CardTitle>
+          <CardDescription>
+            Select a subject to view its chapters
+          </CardDescription>
+        </div>
+        <Button size="sm" variant="outline" onClick={() => openSubjectModal()}>
+          <Plus className="h-4 w-4 mr-2" />
+          New Subject
+        </Button>
       </CardHeader>
       <CardContent>
         <div className="space-y-0">
@@ -471,16 +690,49 @@ export default function QuestionsPage() {
             return (
               <div
                 key={subject._id}
-                className="flex items-center justify-between p-4 border-b border-border/70 hover:bg-muted/30 cursor-pointer transition-colors"
+                className="flex items-start gap-4 justify-between p-4 border-b border-border/70 hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => handleSubjectClick(subject._id)}
               >
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-base">{subject.name}</span>
-                  <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded-full">
-                    {questionCount} {questionCount === 1 ? "Question" : "Questions"}
-                  </span>
+                <div className="flex-1 space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-base">
+                      {subject.name}
+                    </span>
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                      {questionCount}{" "}
+                      {questionCount === 1 ? "Question" : "Questions"}
+                    </span>
+                  </div>
+                  {subject.description && (
+                    <p className="text-sm text-muted-foreground">
+                      {subject.description}
+                    </p>
+                  )}
                 </div>
-                <ChevronDown className="h-5 w-5 text-muted-foreground" />
+                <div
+                  className="flex items-center gap-2"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-9"
+                    aria-label="Edit subject"
+                    onClick={() => openSubjectModal(subject)}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
+                    aria-label="Delete subject"
+                    onClick={() => handleDeleteSubject(subject._id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             );
           })}
@@ -491,16 +743,13 @@ export default function QuestionsPage() {
 
   // CHAPTERS VIEW
   const renderChaptersView = () => {
-    const selectedSubjectName = subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
-    
+    const selectedSubjectName =
+      subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
+
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBackToSubjects}
-          >
+          <Button variant="outline" size="sm" onClick={handleBackToSubjects}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Subjects
           </Button>
@@ -513,9 +762,21 @@ export default function QuestionsPage() {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Chapters</CardTitle>
-            <CardDescription>Select a chapter to view or upload questions</CardDescription>
+          <CardHeader className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <CardTitle>Chapters</CardTitle>
+              <CardDescription>
+                Select a chapter to view or upload questions
+              </CardDescription>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => openChapterModal()}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Chapter
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="space-y-0">
@@ -524,31 +785,63 @@ export default function QuestionsPage() {
                 return (
                   <div
                     key={chapter._id}
-                    className="flex items-center justify-between p-4 border-b border-border/70"
+                    className="flex flex-col gap-3 p-4 border-b border-border/70"
                   >
-                    <div className="flex-1">
-                      <p className="font-medium text-base">{chapter.name}</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {questionCount} {questionCount === 1 ? "question" : "questions"}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleChapterUpload(chapter._id)}
-                        disabled={uploading}
-                      >
-                        <Upload className="h-4 w-4 mr-2" />
-                        Upload
-                      </Button>
-                      <Button
-                        size="sm"
-                        onClick={() => handleChapterView(chapter._id)}
-                      >
-                        <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <p className="font-medium text-base">
+                            {chapter.name}
+                          </p>
+                          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground bg-muted px-2 py-1 rounded-full">
+                            {questionCount}{" "}
+                            {questionCount === 1 ? "question" : "questions"}
+                          </span>
+                        </div>
+                        {chapter.description && (
+                          <p className="text-sm text-muted-foreground">
+                            {chapter.description}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleChapterUpload(chapter._id)}
+                          disabled={uploading}
+                        >
+                          <Upload className="h-4 w-4 mr-2" />
+                          Upload
+                        </Button>
+                        <Button
+                          size="sm"
+                          onClick={() => handleChapterView(chapter._id)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View
+                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 w-9"
+                            aria-label="Edit chapter"
+                            onClick={() => openChapterModal(chapter)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-9 w-9 text-destructive border-destructive/50 hover:bg-destructive/10"
+                            aria-label="Delete chapter"
+                            onClick={() => handleDeleteChapter(chapter._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
@@ -567,17 +860,15 @@ export default function QuestionsPage() {
 
   // QUESTIONS VIEW
   const renderQuestionsView = () => {
-    const selectedSubjectName = subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
-    const selectedChapterName = chapterMap.get(selectedChapter || "")?.name || "Chapter";
+    const selectedSubjectName =
+      subjects.find((s) => s._id === selectedSubject)?.name || "Subject";
+    const selectedChapterName =
+      chapterMap.get(selectedChapter || "")?.name || "Chapter";
 
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleBackToChapters}
-          >
+          <Button variant="outline" size="sm" onClick={handleBackToChapters}>
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Chapters
           </Button>
@@ -586,7 +877,8 @@ export default function QuestionsPage() {
               {selectedSubjectName} - {selectedChapterName}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {filtered.length} {filtered.length === 1 ? "question" : "questions"}
+              {filtered.length}{" "}
+              {filtered.length === 1 ? "question" : "questions"}
             </p>
           </div>
         </div>
@@ -633,7 +925,8 @@ export default function QuestionsPage() {
                           q.correctAnswer ||
                           (q.type === "fill_blank"
                             ? q.answer
-                            : q.options?.find((o) => o.isCorrect)?.text || q.answer);
+                            : q.options?.find((o) => o.isCorrect)?.text ||
+                              q.answer);
 
                         return (
                           <tr key={q._id} className="border-t">
@@ -651,23 +944,26 @@ export default function QuestionsPage() {
                                     q.type === "fill_blank"
                                       ? []
                                       : q.options?.length
-                                      ? q.options.map((opt) => ({
-                                          text: opt.text,
-                                          isCorrect: !!opt.isCorrect,
-                                        }))
-                                      : [
-                                          { text: "", isCorrect: true },
-                                          { text: "", isCorrect: false },
-                                          { text: "", isCorrect: false },
-                                          { text: "", isCorrect: false },
-                                        ];
+                                        ? q.options.map((opt) => ({
+                                            text: opt.text,
+                                            isCorrect: !!opt.isCorrect,
+                                          }))
+                                        : [
+                                            { text: "", isCorrect: true },
+                                            { text: "", isCorrect: false },
+                                            { text: "", isCorrect: false },
+                                            { text: "", isCorrect: false },
+                                          ];
 
                                   if (
                                     q.type !== "fill_blank" &&
                                     clonedOptions.length &&
                                     !clonedOptions.some((o) => o.isCorrect)
                                   ) {
-                                    clonedOptions[0] = { ...clonedOptions[0], isCorrect: true };
+                                    clonedOptions[0] = {
+                                      ...clonedOptions[0],
+                                      isCorrect: true,
+                                    };
                                   }
 
                                   setEditingQuestion({
@@ -813,17 +1109,18 @@ export default function QuestionsPage() {
               >
                 <option value="">Select chapter</option>
                 {chapters
-                  .filter(
-                    (c) =>
-                      !newQuestion.subject && !selectedSubject
-                        ? true
-                        : String(c.subject._id) === String(newQuestion.subject || selectedSubject)
-                  )
+                  .filter((c) => {
+                    if (!newQuestion.subject && !selectedSubject) {
+                      return true;
+                    }
+                    const filterSubject = newQuestion.subject || selectedSubject;
+                    return getChapterSubjectId(c) === filterSubject;
+                  })
                   .map((c) => (
-                  <option key={c._id} value={c._id}>
-                    {c.name}
-                  </option>
-                ))}
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
               </select>
             </div>
             {newQuestion.type === "fill_blank" && (
@@ -904,7 +1201,9 @@ export default function QuestionsPage() {
               placeholder="Question text"
               value={editingQuestion.text}
               onChange={(e) =>
-                setEditingQuestion((p) => (p ? { ...p, text: e.target.value } : p))
+                setEditingQuestion((p) =>
+                  p ? { ...p, text: e.target.value } : p,
+                )
               }
             />
 
@@ -961,7 +1260,7 @@ export default function QuestionsPage() {
                           subject: e.target.value,
                           chapter: "",
                         }
-                      : p
+                      : p,
                   )
                 }
               >
@@ -977,16 +1276,19 @@ export default function QuestionsPage() {
                 className="h-10 rounded border px-3"
                 value={editingQuestion.chapter}
                 onChange={(e) =>
-                  setEditingQuestion((p) => (p ? { ...p, chapter: e.target.value } : p))
+                  setEditingQuestion((p) =>
+                    p ? { ...p, chapter: e.target.value } : p,
+                  )
                 }
               >
                 <option value="">Select chapter</option>
                 {chapters
-                  .filter(
-                    (c) =>
-                      !editingQuestion.subject ||
-                      String(c.subject._id) === String(editingQuestion.subject)
-                  )
+                  .filter((c) => {
+                    if (!editingQuestion.subject) {
+                      return true;
+                    }
+                    return getChapterSubjectId(c) === editingQuestion.subject;
+                  })
                   .map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name}
@@ -1000,7 +1302,9 @@ export default function QuestionsPage() {
                 placeholder="Correct answer"
                 value={editingQuestion.answer}
                 onChange={(e) =>
-                  setEditingQuestion((p) => (p ? { ...p, answer: e.target.value } : p))
+                  setEditingQuestion((p) =>
+                    p ? { ...p, answer: e.target.value } : p,
+                  )
                 }
               />
             )}
@@ -1015,7 +1319,9 @@ export default function QuestionsPage() {
                     <Input
                       placeholder={`Option ${i + 1}`}
                       value={o.text}
-                      onChange={(e) => handleEditOptionChange(i, e.target.value)}
+                      onChange={(e) =>
+                        handleEditOptionChange(i, e.target.value)
+                      }
                       className="flex-1"
                     />
                     <label className="flex items-center gap-2 text-sm">
@@ -1054,7 +1360,10 @@ export default function QuestionsPage() {
             )}
 
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setEditingQuestion(null)}>
+              <Button
+                variant="outline"
+                onClick={() => setEditingQuestion(null)}
+              >
                 Cancel
               </Button>
               <Button onClick={submitEdit} disabled={saving}>
@@ -1065,34 +1374,162 @@ export default function QuestionsPage() {
         </div>
       )}
 
+      {/* SUBJECT MODAL */}
+      {showSubjectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4">
+            <h3 className="text-lg font-semibold">
+              {editingSubject ? "Edit subject" : "New subject"}
+            </h3>
+            <Input
+              placeholder="Subject name"
+              value={subjectForm.name}
+              onChange={(e) =>
+                setSubjectForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+            <select
+              className="h-10 w-full rounded border px-3"
+              value={subjectForm.type}
+              onChange={(e) =>
+                setSubjectForm((prev) => ({
+                  ...prev,
+                  type: e.target.value as SubjectType,
+                }))
+              }
+            >
+              {SUBJECT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {type.replace("_", " ").toUpperCase()}
+                </option>
+              ))}
+            </select>
+            <textarea
+              rows={3}
+              className="w-full rounded border px-3 py-2 text-sm"
+              placeholder="Optional description"
+              value={subjectForm.description}
+              onChange={(e) =>
+                setSubjectForm((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeSubjectModal}>
+                Cancel
+              </Button>
+              <Button onClick={submitSubjectForm} disabled={subjectProcessing}>
+                {subjectProcessing ? (
+                  <Loader2 className="animate-spin" />
+                ) : editingSubject ? (
+                  "Save"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CHAPTER MODAL */}
+      {showChapterModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
+          <div className="w-full max-w-md rounded-xl bg-background p-6 space-y-4">
+            <h3 className="text-lg font-semibold">
+              {editingChapter ? "Edit chapter" : "New chapter"}
+            </h3>
+            <Input
+              placeholder="Chapter name"
+              value={chapterForm.name}
+              onChange={(e) =>
+                setChapterForm((prev) => ({ ...prev, name: e.target.value }))
+              }
+            />
+            <select
+              className="h-10 w-full rounded border px-3"
+              value={chapterForm.subject}
+              onChange={(e) =>
+                setChapterForm((prev) => ({ ...prev, subject: e.target.value }))
+              }
+            >
+              <option value="">Select subject</option>
+              {subjects.map((subject) => (
+                <option key={subject._id} value={subject._id}>
+                  {subject.name}
+                </option>
+              ))}
+            </select>
+            <textarea
+              rows={3}
+              className="w-full rounded border px-3 py-2 text-sm"
+              placeholder="Optional description"
+              value={chapterForm.description}
+              onChange={(e) =>
+                setChapterForm((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
+              }
+            />
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={closeChapterModal}>
+                Cancel
+              </Button>
+              <Button onClick={submitChapterForm} disabled={chapterProcessing}>
+                {chapterProcessing ? (
+                  <Loader2 className="animate-spin" />
+                ) : editingChapter ? (
+                  "Save"
+                ) : (
+                  "Create"
+                )}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <PageHeader
         title="Questions"
         action={
-          viewMode === "questions" && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setNewQuestion({
-                  text: "",
-                  type: "mcq",
-                  subject: selectedSubject || "",
-                  chapter: selectedChapter || "",
-                  options: [
-                    { text: "", isCorrect: false },
-                    { text: "", isCorrect: false },
-                    { text: "", isCorrect: false },
-                    { text: "", isCorrect: false },
-                  ],
-                  answer: "",
-                });
-                setShowAddDialog(true);
-              }}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Question
-            </Button>
-          )
+          viewMode === "questions" ? (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setNewQuestion({
+                    text: "",
+                    type: "mcq",
+                    subject: selectedSubject || "",
+                    chapter: selectedChapter || "",
+                    options: [
+                      { text: "", isCorrect: false },
+                      { text: "", isCorrect: false },
+                      { text: "", isCorrect: false },
+                      { text: "", isCorrect: false },
+                    ],
+                    answer: "",
+                  });
+                  setShowAddDialog(true);
+                }}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Question
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => openSubjectModal()}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Subject
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
@@ -1104,7 +1541,8 @@ export default function QuestionsPage() {
         className="hidden"
         onChange={async (e) => {
           const file = e.target.files?.[0];
-          const chapterId = uploadChapterIdRef.current || selectedChapter || undefined;
+          const chapterId =
+            uploadChapterIdRef.current || selectedChapter || undefined;
           await handleUploadChange(file, chapterId);
           e.target.value = "";
           uploadChapterIdRef.current = null;
