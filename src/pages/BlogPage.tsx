@@ -1,4 +1,5 @@
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
 import PageHeader from "../components/PageHeader";
