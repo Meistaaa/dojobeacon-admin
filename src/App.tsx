@@ -22,6 +22,7 @@ import ContentPage from "./pages/ContentPage";
 import LoginPage from "./pages/LoginPage";
 import QuestionsPage from "./pages/QuestionsPage";
 import BlogPage from "./pages/BlogPage";
+import MdcatTestsPage from "./pages/MdcatTestsPage";
 import "./index.css";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { useAuthStore } from "./stores/authStore";
@@ -32,7 +33,8 @@ export default function App() {
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { to: "/blog", label: "Blog", icon: Newspaper },
-    { to: "/tests", label: "Tests", icon: ListChecks },
+    { to: "/tests", label: "Tests", icon: ListChecks, end: true },
+    { to: "/tests/mdcat", label: "MD-CAT Tests", icon: ListChecks },
     { to: "/questions", label: "Questions Bank", icon: ListChecks },
     { to: "/users", label: "Users", icon: Users },
     { to: "/admins", label: "Admins", icon: Shield },
@@ -57,10 +59,11 @@ export default function App() {
                   </p>
                 </div>
                 <nav className="flex-1 px-2 py-4 space-y-1 overflow-hidden">
-                  {navItems.map(({ to, label, icon: Icon }) => (
+                  {navItems.map(({ to, label, icon: Icon, end }) => (
                     <NavLink
                       key={to}
                       to={to}
+                      end={end}
                       className={({ isActive }) =>
                         `flex items-center gap-3 px-3 py-2 rounded-xl transition ${
                           isActive
@@ -118,6 +121,14 @@ export default function App() {
                       element={
                         <ProtectedRoute>
                           <TestsPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/tests/mdcat"
+                      element={
+                        <ProtectedRoute>
+                          <MdcatTestsPage />
                         </ProtectedRoute>
                       }
                     />

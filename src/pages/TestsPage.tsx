@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import { apiFetch } from "../lib/api";
 import { paginate, buildPagination } from "../lib/pagination";
@@ -83,6 +84,13 @@ export default function TestsPage() {
       <PageHeader
         title="Tests"
         description="Manage practice tests."
+        action={
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/tests/mdcat">MD-CAT Tests</Link>
+            </Button>
+          </div>
+        }
       />
 
       <Card>
