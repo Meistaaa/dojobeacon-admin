@@ -15,7 +15,7 @@ import {
 import { Badge } from "../components/ui/badge";
 import { apiFetch } from "../lib/api";
 import api from "../lib/axiosInstance";
-import { Loader2, Pencil, Plus, Trash2, Eye, RefreshCw } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2, Eye, RefreshCw, X, Check } from "lucide-react";
 
 type BlogStatus = "draft" | "published";
 
@@ -422,6 +422,18 @@ export default function BlogPage() {
       <Badge variant="secondary">Draft</Badge>
     );
 
+  const handleSlugSync = () => {
+    if (form.title) {
+      const generated = form.title
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .trim();
+      setForm((p) => ({ ...p, slug: generated }));
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -708,62 +720,151 @@ export default function BlogPage() {
       )}
 
       {showModal && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background text-foreground">
-          <div className="flex items-center justify-between border-b border-border px-6 py-4">
-            <h3 className="text-xl font-semibold">
-              {editingId ? "Edit Blog Post" : "New Blog Post"}
-            </h3>
-            <Button variant="ghost" onClick={() => setShowModal(false)}>
-              Close
-            </Button>
-          </div>
-          <div className="flex-1 overflow-auto px-6 py-4">
-            <div className="grid gap-6 lg:grid-cols-[1.25fr,1fr]">
-              <div className="space-y-4">
-                <Input
-                  placeholder="Title"
-                  value={form.title}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, title: e.target.value }))
+        <div className="fixed inset-0 z-50 flex flex-col bg-background animate-in fade-in zoom-in-95 duration-200">
+          {/* Header */}
+          <header className="flex h-16 items-center justify-between border-b px-6">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowModal(false)}
+                className="h-9 w-9 p-0"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+              <div className="h-6 w-px bg-border" />
+              <h3 className="text-sm font-medium">
+                {editingId ? "Editing Post" : "Drafting New Post"}
+              </h3>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 rounded-lg border bg-muted/50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, status: "draft" }))}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                    form.status === "draft"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Draft
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setForm((p) => ({ ...p, status: "published" }))
                   }
-                  className="rounded-lg"
-                />
-                <Input
-                  placeholder="Slug (optional)"
-                  value={form.slug}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, slug: e.target.value }))
-                  }
-                  className="rounded-lg"
-                />
-                <div className="flex flex-col gap-3">
-                  <Input
-                    placeholder="Cover image URL (optional)"
-                    value={form.coverImage}
-                    onChange={(e) => {
-                      setForm((p) => ({ ...p, coverImage: e.target.value }));
-                      setCoverUploadSuccess(null);
-                      setCoverUploadError(null);
-                    }}
-                    className="rounded-lg"
-                  />
-                  <div className="flex flex-row flex-wrap items-center gap-3">
-                    <Button
-                      size="sm"
-                      variant="outline"
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                    form.status === "published"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  Publish
+                </button>
+              </div>
+              <Button onClick={handleSubmit} disabled={saving} size="sm">
+                {saving ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                {editingId ? "Update" : "Save"}
+              </Button>
+            </div>
+          </header>
+
+          <main className="flex-1 overflow-hidden">
+            <div className="flex h-full">
+              {/* Content Area */}
+              <div className="flex-1 overflow-y-auto px-12 py-8">
+                <div className="mx-auto max-w-4xl space-y-8">
+                  <div className="space-y-4">
+                    <textarea
+                      placeholder="Post Title..."
+                      className="w-full resize-none border-none bg-transparent text-4xl font-bold placeholder:text-muted-foreground/30 focus:outline-none focus:ring-0"
+                      rows={1}
+                      value={form.title}
+                      onChange={(e) => {
+                        setForm((p) => ({ ...p, title: e.target.value }));
+                        // Auto-adjust height
+                        e.target.style.height = "auto";
+                        e.target.style.height = `${e.target.scrollHeight}px`;
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") e.preventDefault();
+                      }}
+                    />
+                    <div className="h-px bg-border/60" />
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Body Content
+                      </label>
+                      <div className="flex items-center gap-3 text-xs">
+                        {imageUploading ? (
+                          <span className="flex items-center gap-1 text-blue-600">
+                            <Loader2 className="h-3 w-3 animate-spin" />
+                            Uploading...
+                          </span>
+                        ) : imageUploadSuccess ? (
+                          <span className="text-green-600">
+                            Image added!
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="min-h-[500px] prose prose-sm max-w-none">
+                      <div
+                        ref={quillWrapperRef}
+                        className="rounded-xl border border-border bg-card shadow-sm overflow-hidden"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidebar Settings */}
+              <aside className="w-80 border-l bg-muted/20 overflow-y-auto p-6 space-y-8">
+                <div className="space-y-6">
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Cover Image
+                    </label>
+                    <div
+                      className="group relative flex aspect-video cursor-pointer flex-col items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-border bg-background transition hover:border-accent/50 hover:bg-muted/30"
                       onClick={() => coverInputRef.current?.click()}
-                      disabled={coverUploading}
                     >
-                      {coverUploading ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                      {form.coverImage ? (
+                        <>
+                          <img
+                            src={form.coverImage}
+                            alt="Cover"
+                            className="h-full w-full object-cover transition group-hover:opacity-50"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                            <Button variant="secondary" size="sm">
+                              Change
+                            </Button>
+                          </div>
+                        </>
                       ) : (
-                        "Upload cover file"
+                        <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                          <Plus className="h-6 w-6" />
+                          <span className="text-[10px] font-medium">
+                            Upload Cover
+                          </span>
+                        </div>
                       )}
-                    </Button>
-                    <span className="text-xs text-muted-foreground">
-                      Uploading a file saves the URL automatically; you can
-                      still paste one manually if needed.
-                    </span>
+                      {coverUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-background/80">
+                          <Loader2 className="h-6 w-6 animate-spin" />
+                        </div>
+                      )}
+                    </div>
                     <input
                       ref={coverInputRef}
                       type="file"
@@ -771,145 +872,96 @@ export default function BlogPage() {
                       className="hidden"
                       onChange={handleCoverImageInputChange}
                     />
-                  </div>
-                  <Input
-                    placeholder="Tags (comma separated)"
-                    value={form.tags}
-                    onChange={(e) =>
-                      setForm((p) => ({ ...p, tags: e.target.value }))
-                    }
-                    className="rounded-lg"
-                  />
-                  <div className="flex flex-col gap-1">
-                    <select
-                      className="rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                      value={form.status}
+                    <Input
+                      placeholder="Paste image URL..."
+                      value={form.coverImage}
+                      className="h-8 text-xs bg-background"
                       onChange={(e) =>
-                        setForm((p) => ({
-                          ...p,
-                          status: e.target.value as BlogStatus,
-                        }))
+                        setForm((p) => ({ ...p, coverImage: e.target.value }))
                       }
-                    >
-                      <option value="draft">Draft</option>
-                      <option value="published">Published</option>
-                    </select>
-                    {coverUploadError && (
-                      <p className="text-xs text-destructive">
-                        {coverUploadError}
-                      </p>
-                    )}
-                    {!coverUploadError && coverUploadSuccess && (
-                      <p className="text-xs text-green-600">
-                        {coverUploadSuccess}
-                      </p>
-                    )}
-                    {form.coverImage && (
-                      <div className="flex flex-wrap items-center gap-2 pt-2">
-                        <div className="h-16 w-24 overflow-hidden rounded border border-border">
-                          <img
-                            src={form.coverImage}
-                            alt="Cover preview"
-                            className="h-full w-full object-cover"
-                          />
-                        </div>
-                        <div className="flex flex-col text-xs text-muted-foreground">
-                          <span>Cover image is ready.</span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="px-1 text-xs"
-                            onClick={() =>
-                              setForm((p) => ({ ...p, coverImage: "" }))
-                            }
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Slug
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleSlugSync}
+                        className="text-[10px] text-accent hover:underline"
+                      >
+                        Generate
+                      </button>
+                    </div>
+                    <Input
+                      placeholder="url-friendly-slug"
+                      value={form.slug}
+                      className="h-9 text-sm bg-background"
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, slug: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Tags
+                    </label>
+                    <Input
+                      placeholder="news, update, guide"
+                      value={form.tags}
+                      className="h-9 text-sm bg-background"
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, tags: e.target.value }))
+                      }
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Separate tags with commas
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Excerpt
+                    </label>
+                    <textarea
+                      placeholder="Brief summary of the post..."
+                      className="w-full min-h-[100px] rounded-lg border bg-background px-3 py-2 text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                      value={form.excerpt}
+                      onChange={(e) =>
+                        setForm((p) => ({ ...p, excerpt: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Asset Management
+                    </label>
+                    <Input
+                      placeholder="Folder path (e.g. blogs/tech)"
+                      value={imageFolder}
+                      className="h-9 text-sm bg-background font-mono"
+                      onChange={(e) => setImageFolder(e.target.value)}
+                    />
+                    <p className="text-[10px] text-muted-foreground">
+                      Determines where images are saved in storage.
+                    </p>
                   </div>
                 </div>
-                <textarea
-                  className="min-h-[120px] w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="Excerpt"
-                  value={form.excerpt}
-                  onChange={(e) =>
-                    setForm((p) => ({ ...p, excerpt: e.target.value }))
-                  }
-                />
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    Content
-                  </span>
-                  {imageUploading ? (
-                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      Uploading image...
-                    </span>
-                  ) : imageUploadSuccess ? (
-                    <span className="text-xs text-green-600">
-                      {imageUploadSuccess}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      Drag or paste images into the editor or use the toolbar
-                      image button.
-                    </span>
-                  )}
-                </div>
-                <div
-                  ref={quillWrapperRef}
-                  className="min-h-[320px] rounded-lg border border-input bg-background p-2"
-                />
-                <div className="space-y-1 text-xs text-muted-foreground">
-                  <Input
-                    placeholder="Image folder hierarchy (e.g. blogs/updates)"
-                    value={imageFolder}
-                    onChange={(e) => setImageFolder(e.target.value)}
-                    className="rounded-lg"
-                  />
-                  <p>
-                    Images uploaded through the editor are stored under this
-                    path. Leave empty to use{" "}
-                    <span className="font-semibold text-muted-foreground">
-                      blogs
-                    </span>
-                    .
-                  </p>
-                  {imageUploadError && (
-                    <p className="text-xs text-destructive">
-                      {imageUploadError}
-                    </p>
-                  )}
-                </div>
-                <input
-                  ref={quillImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleQuillImageInputChange}
-                />
-              </div>
+              </aside>
             </div>
-          </div>
-          <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
-            <Button variant="outline" onClick={() => setShowModal(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSubmit} disabled={saving}>
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : editingId ? (
-                "Update Post"
-              ) : (
-                "Create Post"
-              )}
-            </Button>
-          </div>
+          </main>
+
+          <input
+            ref={quillImageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleQuillImageInputChange}
+          />
         </div>
       )}
     </div>
