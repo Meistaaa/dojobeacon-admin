@@ -5,11 +5,11 @@ import type { TestSummary } from "../../types/tests";
 
 type MdcatTestCardProps = {
   test: TestSummary;
-  onStart: (testId: string) => void;
-  starting: boolean;
+  onView: (testId: string) => void;
+  viewing: boolean;
 };
 
-export default function MdcatTestCard({ test, onStart, starting }: MdcatTestCardProps) {
+export default function MdcatTestCard({ test, onView, viewing }: MdcatTestCardProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -35,8 +35,8 @@ export default function MdcatTestCard({ test, onStart, starting }: MdcatTestCard
           </p>
         </div>
         <div>
-          <Button onClick={() => onStart(test._id)} disabled={starting}>
-            {starting ? "Starting..." : "Start Test"}
+          <Button onClick={() => onView(test._id)} disabled={viewing}>
+            {viewing ? "Loading..." : "View Test"}
           </Button>
         </div>
       </CardContent>

@@ -1,6 +1,11 @@
 import { buildQuery, apiFetch } from "./api";
 import api from "./axiosInstance";
-import type { MdcatUploadResponse, StartTestResponse, TestSummary } from "../types/tests";
+import type {
+  MdcatUploadResponse,
+  StartTestResponse,
+  TestDetail,
+  TestSummary,
+} from "../types/tests";
 
 type GetMdcatTestsParams = {
   year?: number;
@@ -16,7 +21,7 @@ export const getMdcatTests = ({ year, isPredefined }: GetMdcatTestsParams = {}) 
   return apiFetch<TestSummary[]>(`/tests${query}`);
 };
 
-export const getTestById = (id: string) => apiFetch<TestSummary>(`/tests/${id}`);
+export const getTestById = (id: string) => apiFetch<TestDetail>(`/tests/${id}`);
 
 export const startTest = (id: string) => apiFetch<StartTestResponse>(`/tests/${id}/start`);
 

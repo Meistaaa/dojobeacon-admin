@@ -14,6 +14,34 @@ export interface TestSummary {
   chapters?: Array<{ _id: string; name: string }>;
 }
 
+export interface TestQuestionOption {
+  text: string;
+  isCorrect?: boolean;
+}
+
+export interface TestQuestion {
+  _id: string;
+  text: string;
+  type?: "mcq" | "true_false" | "fill_blank" | string;
+  options?: Array<
+    | string
+    | {
+        text?: string;
+        isCorrect?: boolean;
+        is_correct?: boolean;
+        correct?: boolean;
+      }
+  >;
+  correctAnswer?: string;
+  answer?: string;
+  subject?: string | { _id: string; name: string };
+  chapter?: string | { _id: string; name: string };
+}
+
+export interface TestDetail extends TestSummary {
+  questions?: TestQuestion[];
+}
+
 export interface MdcatUploadResponse {
   success: boolean;
   data: {
