@@ -4,8 +4,14 @@ import PageHeader from "../components/PageHeader";
 import MdcatTestCard from "../components/mdcat/MdcatTestCard";
 import MdcatYearFilter from "../components/mdcat/MdcatYearFilter";
 import MdcatUploadForm from "../components/mdcat/MdcatUploadForm";
+import MdcatTestEditor from "../components/mdcat/MdcatTestEditor";
 import { Button } from "../components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../components/ui/card";
 import { getMdcatTests, getTestById } from "../lib/testsApi";
 import type { TestDetail, TestQuestion, TestSummary } from "../types/tests";
 import { useAuthStore } from "../stores/authStore";
@@ -30,10 +36,15 @@ const normalizeOptions = (question: TestQuestion): NormalizedOption[] => {
   });
 };
 
-const getCorrectAnswer = (question: TestQuestion, options: NormalizedOption[]) => {
+const getCorrectAnswer = (
+  question: TestQuestion,
+  options: NormalizedOption[],
+) => {
   if (question.correctAnswer) return question.correctAnswer;
   if (question.type === "fill_blank") return question.answer ?? "";
-  return options.find((option) => option.isCorrect)?.text ?? question.answer ?? "";
+  return (
+    options.find((option) => option.isCorrect)?.text ?? question.answer ?? ""
+  );
 };
 
 const getRelationName = (value?: string | { _id: string; name: string }) => {
@@ -53,6 +64,7 @@ export default function MdcatTestsPage() {
   const [selectedTest, setSelectedTest] = useState<TestDetail | null>(null);
   const [viewError, setViewError] = useState<string | null>(null);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [managingId, setManagingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadYears = async () => {
@@ -62,8 +74,8 @@ export default function MdcatTestsPage() {
           new Set(
             all
               .map((test: TestSummary) => test.year)
-              .filter((year): year is number => typeof year === "number")
-          )
+              .filter((year): year is number => typeof year === "number"),
+          ),
         ).sort((a: number, b: number) => b - a);
         setYears(sortedYears);
       } catch {
@@ -86,7 +98,9 @@ export default function MdcatTestsPage() {
         const sorted = [...data].sort((a, b) => (b.year ?? 0) - (a.year ?? 0));
         setTests(sorted);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load MD-CAT tests.");
+        setError(
+          err instanceof Error ? err.message : "Failed to load MD-CAT tests.",
+        );
       } finally {
         setLoading(false);
       }
@@ -112,7 +126,9 @@ export default function MdcatTestsPage() {
       const result = await getTestById(testId);
       setSelectedTest(result);
     } catch (err) {
-      setViewError(err instanceof Error ? err.message : "Failed to load MD-CAT test.");
+      setViewError(
+        err instanceof Error ? err.message : "Failed to load MD-CAT test.",
+      );
     } finally {
       setViewingId(null);
     }
@@ -163,7 +179,9 @@ export default function MdcatTestsPage() {
         <div className="space-y-6">
           {grouped.map(([year, items]) => (
             <section key={year} className="space-y-3">
-              <h2 className="text-lg font-semibold">{year || "Unknown year"}</h2>
+              <h2 className="text-lg font-semibold">
+                {year || "Unknown year"}
+              </h2>
               <div className="grid gap-4 md:grid-cols-2">
                 {items.map((test) => (
                   <MdcatTestCard
@@ -171,6 +189,8 @@ export default function MdcatTestsPage() {
                     test={test}
                     onView={handleView}
                     viewing={viewingId === test._id}
+                    isAdmin={isAdmin}
+                    onManage={setManagingId}
                   />
                 ))}
               </div>
@@ -184,12 +204,18 @@ export default function MdcatTestsPage() {
           <div className="w-full max-w-2xl rounded-xl border border-border bg-background shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div>
-                <h2 className="text-lg font-semibold">Upload MD-CAT Questions / Question Bank</h2>
+                <h2 className="text-lg font-semibold">
+                  Upload MD-CAT Questions / Question Bank
+                </h2>
                 <p className="text-sm text-muted-foreground">
                   Upload CSV/XLSX file to create MD-CAT yearly test.
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setUploadDialogOpen(false)}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUploadDialogOpen(false)}
+              >
                 Close
               </Button>
             </div>
@@ -200,7 +226,7 @@ export default function MdcatTestsPage() {
         </div>
       ) : null}
 
-      {(selectedTest || viewError) ? (
+      {selectedTest || viewError ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-8">
           <div className="w-full max-w-5xl rounded-xl border border-border bg-background shadow-xl">
             <div className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -230,7 +256,9 @@ export default function MdcatTestsPage() {
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {selectedTest.description ? (
-                        <p className="text-sm text-muted-foreground">{selectedTest.description}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {selectedTest.description}
+                        </p>
                       ) : null}
                       <div className="flex flex-wrap gap-4 text-sm">
                         <p>
@@ -238,15 +266,21 @@ export default function MdcatTestsPage() {
                           {selectedTest.year ?? "-"}
                         </p>
                         <p>
-                          <span className="text-muted-foreground">Duration:</span>{" "}
+                          <span className="text-muted-foreground">
+                            Duration:
+                          </span>{" "}
                           {selectedTest.duration} mins
                         </p>
                         <p>
-                          <span className="text-muted-foreground">Total marks:</span>{" "}
+                          <span className="text-muted-foreground">
+                            Total marks:
+                          </span>{" "}
                           {selectedTest.totalMarks ?? "-"}
                         </p>
                         <p>
-                          <span className="text-muted-foreground">Questions:</span>{" "}
+                          <span className="text-muted-foreground">
+                            Questions:
+                          </span>{" "}
                           {selectedTest.questions?.length ?? 0}
                         </p>
                       </div>
@@ -262,18 +296,32 @@ export default function MdcatTestsPage() {
                         <div className="space-y-4">
                           {selectedTest.questions.map((question, index) => {
                             const options = normalizeOptions(question);
-                            const correctAnswer = getCorrectAnswer(question, options);
-                            const subjectName = getRelationName(question.subject);
-                            const chapterName = getRelationName(question.chapter);
+                            const correctAnswer = getCorrectAnswer(
+                              question,
+                              options,
+                            );
+                            const subjectName = getRelationName(
+                              question.subject,
+                            );
+                            const chapterName = getRelationName(
+                              question.chapter,
+                            );
 
                             return (
-                              <div key={question._id || `${selectedTest._id}-${index}`} className="rounded-xl border border-border p-4">
+                              <div
+                                key={
+                                  question._id || `${selectedTest._id}-${index}`
+                                }
+                                className="rounded-xl border border-border p-4"
+                              >
                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                   <div className="space-y-2">
                                     <p className="text-sm font-medium text-muted-foreground">
                                       Question {index + 1}
                                     </p>
-                                    <p className="text-base font-medium">{question.text}</p>
+                                    <p className="text-base font-medium">
+                                      {question.text}
+                                    </p>
                                   </div>
                                   <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                     {question.type ? (
@@ -305,14 +353,17 @@ export default function MdcatTestsPage() {
                                             : "border-border"
                                         }`}
                                       >
-                                        {option.text || `Option ${optionIndex + 1}`}
+                                        {option.text ||
+                                          `Option ${optionIndex + 1}`}
                                       </div>
                                     ))}
                                   </div>
                                 ) : null}
 
                                 <div className="mt-4 text-sm">
-                                  <span className="text-muted-foreground">Correct answer:</span>{" "}
+                                  <span className="text-muted-foreground">
+                                    Correct answer:
+                                  </span>{" "}
                                   {correctAnswer || "-"}
                                 </div>
                               </div>
@@ -335,6 +386,13 @@ export default function MdcatTestsPage() {
             </div>
           </div>
         </div>
+      ) : null}
+
+      {isAdmin && managingId ? (
+        <MdcatTestEditor
+          testId={managingId}
+          onClose={() => setManagingId(null)}
+        />
       ) : null}
     </div>
   );

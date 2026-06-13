@@ -810,6 +810,10 @@ export default function BlogPage() {
                             <Loader2 className="h-3 w-3 animate-spin" />
                             Uploading...
                           </span>
+                        ) : imageUploadError ? (
+                          <span className="text-destructive">
+                            {imageUploadError}
+                          </span>
                         ) : imageUploadSuccess ? (
                           <span className="text-green-600">
                             Image added!
@@ -846,7 +850,7 @@ export default function BlogPage() {
                             className="h-full w-full object-cover transition group-hover:opacity-50"
                           />
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                            <Button variant="secondary" size="sm">
+                            <Button variant="outline" size="sm">
                               Change
                             </Button>
                           </div>
@@ -880,6 +884,15 @@ export default function BlogPage() {
                         setForm((p) => ({ ...p, coverImage: e.target.value }))
                       }
                     />
+                    {coverUploadError ? (
+                      <p className="text-[10px] text-destructive">
+                        {coverUploadError}
+                      </p>
+                    ) : coverUploadSuccess ? (
+                      <p className="text-[10px] text-green-600">
+                        {coverUploadSuccess}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="space-y-3">

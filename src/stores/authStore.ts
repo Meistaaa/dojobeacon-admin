@@ -41,6 +41,18 @@ export const useAuthStore = create<AuthState>()(
           }>("/auth/signin", { email, password });
 
           const { accessToken, refreshToken, user } = res.data;
+
+          // Admin panel is for admins only. Reject any non-admin account so a
+          // regular user's credentials cannot establish an admin session.
+          // (Server-side authorization is the real enforcement; this is UX.)
+          if (user.role !== "admin" && user.role !== "super_admin") {
+            set({
+              loading: false,
+              error: "Access denied. This account is not authorized.",
+            });
+            throw new Error("Access denied. This account is not authorized.");
+          }
+
           set({
             accessToken,
             refreshToken: refreshToken || null,

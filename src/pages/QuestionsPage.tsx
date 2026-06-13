@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import PageHeader from "../components/PageHeader";
-import { apiFetch } from "../lib/api";
-import { paginate, buildPagination } from "../lib/pagination";
+import { apiFetch, apiFetchFull, buildQuery } from "../lib/api";
 import type { PaginationState } from "../lib/pagination";
 import { Input } from "../components/ui/input";
 import { Button } from "../components/ui/button";
@@ -103,6 +102,28 @@ const getChapterSubjectId = (chapter: Chapter) => {
   return chapter.subject?._id ?? "";
 };
 
+// Ensure every option carries an explicit isCorrect flag and a resolved correctAnswer.
+const normalizeQuestions = (list: Question[]): Question[] =>
+  (list ?? []).map((question) => {
+    const options = Array.isArray(question.options)
+      ? question.options.map((opt: IncomingOption) => {
+          if (typeof opt === "string") {
+            return { text: opt, isCorrect: false };
+          }
+          const { text = "", isCorrect, is_correct, correct } = opt || {};
+          return { text, isCorrect: !!(isCorrect ?? is_correct ?? correct) };
+        })
+      : [];
+
+    const correctAnswer =
+      question.correctAnswer ||
+      (question.type === "fill_blank"
+        ? question.answer
+        : options?.find((opt) => opt.isCorrect)?.text || question.answer);
+
+    return { ...question, options, correctAnswer };
+  });
+
 /* ================= COMPONENT ================= */
 
 type ViewMode = "subjects" | "chapters" | "questions";
@@ -145,6 +166,15 @@ export default function QuestionsPage() {
     pageSize: 10,
   });
 
+  /* ---------- SERVER-SIDE QUESTIONS (questions view) ---------- */
+  const [chapterQuestions, setChapterQuestions] = useState<Question[]>([]);
+  const [questionsMeta, setQuestionsMeta] = useState({
+    total: 0,
+    pageCount: 1,
+  });
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
   /* ---------- CREATE FORM ---------- */
   const [newQuestion, setNewQuestion] = useState<NewQuestionForm>({
     text: "",
@@ -175,37 +205,7 @@ export default function QuestionsPage() {
         apiFetch<Chapter[]>("/chapters"),
       ]);
 
-      // Ensure every option carries an explicit isCorrect flag for the UI
-      const normalizedQuestions =
-        (q ?? []).map((question: Question) => {
-          const options = Array.isArray(question.options)
-            ? question.options.map((opt: IncomingOption) => {
-                if (typeof opt === "string") {
-                  return { text: opt, isCorrect: false };
-                }
-
-                const { text = "", isCorrect, is_correct, correct } = opt || {};
-                return {
-                  text,
-                  isCorrect: !!(isCorrect ?? is_correct ?? correct),
-                };
-              })
-            : [];
-
-          const correctAnswer =
-            question.correctAnswer ||
-            (question.type === "fill_blank"
-              ? question.answer
-              : options?.find((opt) => opt.isCorrect)?.text || question.answer);
-
-          return {
-            ...question,
-            options,
-            correctAnswer,
-          };
-        }) || [];
-
-      setQuestions(normalizedQuestions);
+      setQuestions(normalizeQuestions(q ?? []));
       setSubjects(s || []);
       setChapters(c || []);
     } catch {
@@ -245,25 +245,58 @@ export default function QuestionsPage() {
     return chapters.filter((c) => getChapterSubjectId(c) === selectedSubject);
   }, [chapters, selectedSubject]);
 
-  /* ================= FILTER (for questions view) ================= */
+  /* ================= SERVER-SIDE SEARCH + PAGINATION ================= */
 
-  const filtered = useMemo(() => {
-    if (viewMode !== "questions" || !selectedChapter) return [];
-    return questions.filter((q) => {
-      return (
-        q.chapter === selectedChapter &&
-        q.text.toLowerCase().includes(search.toLowerCase())
-      );
-    });
-  }, [questions, search, selectedChapter, viewMode]);
+  // Debounce the search box so we hit the API only when typing settles.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
+    return () => clearTimeout(t);
+  }, [search]);
 
-  const paged = paginate(filtered, pagination);
-  const paginationInfo = buildPagination(filtered.length, pagination);
-
-  // Reset to first page when filters/search change
+  // Reset to first page when the search term or chapter changes.
   useEffect(() => {
     setPagination((p) => ({ ...p, page: 1 }));
-  }, [search, selectedChapter]);
+  }, [debouncedSearch, selectedChapter]);
+
+  // Fetch the questions for the current chapter from the API (search + paginated).
+  const loadChapterQuestions = async () => {
+    if (!selectedChapter) return;
+    try {
+      setQuestionsLoading(true);
+      setError(null);
+      const query = buildQuery({
+        chapter: selectedChapter,
+        search: debouncedSearch || undefined,
+        page: pagination.page,
+        limit: pagination.pageSize,
+      });
+      const res = await apiFetchFull<{
+        data: Question[];
+        pagination?: { total: number; pageCount: number };
+      }>(`/questions${query}`);
+      setChapterQuestions(normalizeQuestions(res.data ?? []));
+      setQuestionsMeta({
+        total: res.pagination?.total ?? res.data?.length ?? 0,
+        pageCount: res.pagination?.pageCount ?? 1,
+      });
+    } catch {
+      setError("Failed to load questions");
+    } finally {
+      setQuestionsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode !== "questions" || !selectedChapter) return;
+    void loadChapterQuestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    viewMode,
+    selectedChapter,
+    debouncedSearch,
+    pagination.page,
+    pagination.pageSize,
+  ]);
 
   /* ================= OPTIONS ================= */
 
@@ -356,7 +389,7 @@ export default function QuestionsPage() {
         data: formData,
       });
 
-      await load();
+      await Promise.all([load(), loadChapterQuestions()]);
       setShowAddDialog(false);
 
       setNewQuestion({
@@ -440,7 +473,7 @@ export default function QuestionsPage() {
         headers: { "Content-Type": "application/json" },
       });
 
-      await load();
+      await Promise.all([load(), loadChapterQuestions()]);
       setEditingQuestion(null);
     } catch {
       setError("Failed to update question");
@@ -453,7 +486,7 @@ export default function QuestionsPage() {
     if (!window.confirm("Delete this question?")) return;
     try {
       await apiFetch(`/questions/${id}`, { method: "DELETE" });
-      await load();
+      await Promise.all([load(), loadChapterQuestions()]);
     } catch {
       setError("Failed to delete question");
     }
@@ -877,8 +910,8 @@ export default function QuestionsPage() {
               {selectedSubjectName} - {selectedChapterName}
             </h2>
             <p className="text-sm text-muted-foreground">
-              {filtered.length}{" "}
-              {filtered.length === 1 ? "question" : "questions"}
+              {questionsMeta.total}{" "}
+              {questionsMeta.total === 1 ? "question" : "questions"}
             </p>
           </div>
         </div>
@@ -900,12 +933,18 @@ export default function QuestionsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Questions</CardTitle>
-            <CardDescription>{filtered.length} total</CardDescription>
+            <CardDescription>{questionsMeta.total} total</CardDescription>
           </CardHeader>
           <CardContent>
-            {filtered.length === 0 ? (
+            {questionsLoading ? (
+              <div className="flex justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-accent" />
+              </div>
+            ) : chapterQuestions.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                No questions found in this chapter
+                {debouncedSearch
+                  ? `No questions match "${debouncedSearch}"`
+                  : "No questions found in this chapter"}
               </div>
             ) : (
               <>
@@ -920,7 +959,7 @@ export default function QuestionsPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {paged.map((q) => {
+                      {chapterQuestions.map((q) => {
                         const correctAnswer =
                           q.correctAnswer ||
                           (q.type === "fill_blank"
@@ -998,7 +1037,7 @@ export default function QuestionsPage() {
 
                 <div className="flex justify-between mt-4">
                   <span className="text-sm text-muted-foreground">
-                    Page {pagination.page} of {paginationInfo.pageCount}
+                    Page {pagination.page} of {questionsMeta.pageCount}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -1014,7 +1053,7 @@ export default function QuestionsPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      disabled={pagination.page >= paginationInfo.pageCount}
+                      disabled={pagination.page >= questionsMeta.pageCount}
                       onClick={() =>
                         setPagination((p) => ({ ...p, page: p.page + 1 }))
                       }
