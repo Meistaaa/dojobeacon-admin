@@ -87,8 +87,6 @@ export default function MdcatUploadForm() {
         if (lowerMessage.includes("file") || lowerMessage.includes("header")) nextErrors.file = message;
         if (lowerMessage.includes("duration")) nextErrors.duration = message;
         setErrors(nextErrors);
-      } else if (status === 409) {
-        setBannerError("MD-CAT test for this year already exists.");
       } else {
         setBannerError(message);
       }
